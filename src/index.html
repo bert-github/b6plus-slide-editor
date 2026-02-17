@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slide Editor</title>
+    <link rel="stylesheet" href="editor-style.css">
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-section">
+            <button id="play-slides" title="Play Slides in Browser">▶️ Play</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <label>Slide Layout:
+                <select id="slide-style">
+                    <option value="">Normal slide</option>
+                    <option value="cover">Cover slide</option>
+                    <option value="final">Final slide</option>
+		</select>
+	    </label>
+	    <label id="slide-clear-label" title="Omit decoration &amp; slide number">
+                <input id="slide-clear" type="checkbox">
+		Clear
+	    </label>
+	    <label>
+                <input id="slide-textfit" type="checkbox">
+		Text Fit
+	    </label>
+        </div>
+        
+        <div class="toolbar-section">
+            <button id="toggle-view" title="Toggle WYSIWYG/HTML View">🔄 HTML View</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <button id="change-stylesheet" title="Change Style Sheet">🎨 Change style sheet</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <button id="edit-custom-css" title="Edit Custom CSS">✏️ Custom CSS</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <label>
+                <input type="checkbox" id="include-b6plus" checked>
+                Include b6+ script
+            </label>
+        </div>
+    </div>
+
+    <div class="formatting-toolbar">
+        <div class="toolbar-section">
+            <button id="format-bold" title="Bold (Cmd/Ctrl+B)" class="format-button"><b>B</b></button>
+            <button id="format-italic" title="Italic (Cmd/Ctrl+I)" class="format-button"><i>I</i></button>
+            <button id="format-underline" title="Underline (Cmd/Ctrl+U)" class="format-button"><u>U</u></button>
+            <button id="format-strikethrough" title="Strikethrough" class="format-button"><s>S</s></button>
+            <button id="format-code" title="Code" class="format-button">&lt;/&gt;</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <button id="format-link" title="Insert/Remove Link" class="format-button">🔗</button>
+            <button id="format-removeformat" title="Remove Formatting" class="format-button">⌫</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <select id="block-format" title="Block Format">
+                <option value="p">Paragraph</option>
+                <option value="h1">Heading 1</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
+                <option value="h4">Heading 4</option>
+                <option value="h5">Heading 5</option>
+                <option value="h6">Heading 6</option>
+                <option value="blockquote">Blockquote</option>
+                <option value="pre">Preformatted</option>
+                <option value="div">Division</option>
+                <option value="address">Address</option>
+                <option value="details">Folding details</option>
+                <option value="article">Article</option>
+                <option value="Aside">Aside</option>
+            </select>
+        </div>
+        
+        <div class="toolbar-section">
+            <button id="format-ul" title="Bulleted List" class="format-button">• List</button>
+            <button id="format-ol" title="Numbered List" class="format-button">1. List</button>
+        </div>
+        
+        <div class="toolbar-section">
+            <button id="edit-class" title="Edit Class Attribute" class="format-button">Class...</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="slides-panel">
+            <h3>Slides</h3>
+            <div id="slides-list"></div>
+            <div class="slides-panel-buttons">
+                <button id="add-slide" title="Add Slide">➕ Add Slide</button>
+                <button id="add-notes" title="Add Speaker Notes">📝 Add Notes</button>
+                <button id="delete-slide" title="Delete Current Slide">🗑️ Delete</button>
+            </div>
+        </div>
+
+        <div class="editor-container">
+            <div id="slide-info">
+                <span id="current-slide-type">Slide</span>
+                <span id="current-slide-number"></span>
+            </div>
+            
+            <div id="wysiwyg-container">
+                <iframe id="editor-frame"></iframe>
+            </div>
+            
+            <div id="html-container" style="display: none;">
+                <textarea id="html-editor"></textarea>
+            </div>
+            
+            <div id="status-bar">
+                <div id="element-path"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom CSS Modal -->
+    <div id="css-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Custom CSS</h3>
+                <button id="close-css-modal" class="close-button">✕</button>
+            </div>
+            <textarea id="custom-css-editor" placeholder="/* Add custom CSS rules here */"></textarea>
+            <div class="modal-footer">
+                <button id="save-custom-css">Save</button>
+                <button id="cancel-custom-css">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stylesheet Dialog -->
+    <div id="stylesheet-dialog" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Change Style Sheet</h3>
+                <button id="close-stylesheet-dialog" class="close-button">✕</button>
+            </div>
+            <div style="padding: 20px;">
+                <label for="stylesheet-url" style="display: block; margin-bottom: 8px; font-weight: bold;">CSS URL or file path:</label>
+                <input type="text" id="stylesheet-url" placeholder="https://example.com/styles.css or /path/to/styles.css" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+                <button id="browse-stylesheet" title="Browse for local CSS file" style="padding: 8px 16px;">📁 Browse...</button>
+            </div>
+            <div class="modal-footer">
+                <button id="apply-stylesheet">Apply</button>
+                <button id="cancel-stylesheet">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Editor Dialog -->
+    <div id="class-dialog" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Edit Class Attribute</h3>
+                <button id="close-class-dialog" class="close-button">✕</button>
+            </div>
+            <div style="padding: 20px;">
+                <label for="class-input" style="display: block; margin-bottom: 8px; font-weight: bold;">Class name(s):</label>
+                <input type="text" id="class-input" placeholder="my-class another-class" style="width: 100%; padding: 8px; box-sizing: border-box;">
+                <p style="margin-top: 8px; font-size: 12px; color: #666;">Separate multiple classes with spaces</p>
+            </div>
+            <div class="modal-footer">
+                <button id="apply-class">Apply</button>
+                <button id="remove-class">Remove Class</button>
+                <button id="cancel-class">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Link Dialog -->
+    <div id="link-dialog" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Insert/Edit Link</h3>
+                <button id="close-link-dialog" class="close-button">✕</button>
+            </div>
+            <div style="padding: 20px;">
+                <label for="link-url" style="display: block; margin-bottom: 8px; font-weight: bold;">URL:</label>
+                <input type="text" id="link-url" placeholder="https://example.com" style="width: 100%; padding: 8px; box-sizing: border-box;">
+            </div>
+            <div class="modal-footer">
+                <button id="apply-link">Apply</button>
+                <button id="remove-link">Remove Link</button>
+                <button id="cancel-link">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="editor.js"></script>
+</body>
+</html>
