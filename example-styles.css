@@ -6,6 +6,7 @@ body {
     padding: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: #000;
+    color: #fff;
 }
 
 section.slide {
@@ -54,7 +55,7 @@ section.slide li {
 }
 
 /* Speaker notes - hidden by default */
-section.comment {
+section.comment:not([contenteditable] {
     display: none;
 }
 
@@ -68,7 +69,7 @@ section.comment {
         color: #333;
         border-left: 4px solid #667eea;
     }
-    
+
     section.comment h3 {
         margin-top: 0;
         color: #667eea;
