@@ -1,6 +1,6 @@
 {
   "name": "b6plus-slide-editor",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "WYSIWYG editor for HTML slide decks",
   "homepage": "https://www.w3.org/Talks/Tools/b6plus-editor/",
   "main": "src/main.js",
@@ -27,8 +27,8 @@
   },
   "license": "W3C",
   "devDependencies": {
-    "electron": "^40.4.1",
-    "electron-builder": "^26.7.0"
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
   },
   "dependencies": {
     "dompurify": "^3.3.1",
