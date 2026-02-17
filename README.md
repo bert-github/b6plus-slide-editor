@@ -20,10 +20,10 @@ A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 
 2. Navigate to the project directory:
 ```bash
-cd slide-editor
+cd b6plus-slide-editor
 ```
 
-3. Install dependencies (this will also copy Squire.js and DOMPurify to the src directory):
+3. Install dependencies (this will also copy html2canvas.js and DOMPurify to the src directory):
 ```bash
 npm install
 ```
@@ -53,15 +53,11 @@ There are several ways to open a slide deck:
 3. **Drag and drop** - Drag an HTML file onto the application window
 4. **Double-click** - Associate .html files with the app and double-click (macOS/Windows)
 
-### Relative Paths
-
-The editor correctly resolves relative paths (images, CSS files, etc.) based on the location of the opened HTML file.
-
-Note: The first `npm install` will copy Squire RTE, DOMPurify, and html2canvas from node_modules to src/ so they're bundled with the application.
-
 ## Building for Distribution
 
-To create installers that users can download and install:
+Installers can be found in the `dist/` directory.
+
+To update the installers:
 
 ```bash
 # Build for your current platform
@@ -72,10 +68,6 @@ npm run dist:mac     # macOS
 npm run dist:win     # Windows
 npm run dist:linux   # Linux
 ```
-
-Installers will be created in the `dist/` directory.
-
-For detailed build instructions, see [BUILD.md](BUILD.md).
 
 ## Usage
 
@@ -175,4 +167,4 @@ To open DevTools for debugging:
 
 ## License
 
-MIT
+[W3C](https://www.w3.org/Consortium/Legal/2023/software-license)
