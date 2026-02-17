@@ -1,0 +1,102 @@
+{
+  "name": "b6plus-slide-editor",
+  "version": "1.0.0",
+  "description": "WYSIWYG editor for HTML slide decks",
+  "homepage": "https://www.w3.org/Talks/Tools/b6plus-editor/",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "cp node_modules/dompurify/dist/purify.js src/dompurify.js && cp node_modules/html2canvas/dist/html2canvas.min.js src/html2canvas.js || (copy node_modules\\dompurify\\dist\\purify.js src\\dompurify.js && copy node_modules\\html2canvas\\dist\\html2canvas.min.js src\\html2canvas.js)",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "keywords": [
+    "slides",
+    "editor",
+    "squire",
+    "wysiwyg",
+    "b6+"
+  ],
+  "author": {
+    "name": "Bert Bos",
+    "email": "bert@w3.org",
+    "url": "https://www.w3.org/People/Bos/"
+  },
+  "license": "W3C",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "dompurify": "^3.0.6",
+    "html2canvas": "^1.4.1"
+  },
+  "build": {
+    "appId": "org.w3c.b6plusslideeditor.app",
+    "productName": "B6+ Slide Editor",
+    "files": [
+      "src/**/*",
+      "example-styles.css",
+      "example-slides.html"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "src/b6plus-logo.png"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "src/b6plus-logo.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Office",
+      "icon": "src/b6plus-logo.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
