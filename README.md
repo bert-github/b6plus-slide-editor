@@ -1,4 +1,4 @@
-# Slide Editor
+# B6+ Slide Editor
 
 A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 
