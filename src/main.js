@@ -543,11 +543,15 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
       slideLayoutMenu.submenu = defaultLayouts;
     } else {
       slideLayoutMenu.submenu = [];
-      for (const layout of json.layouts)
+      for (const h of json.layouts) {
+	const n = h.name;
+	// updateLayoutsAndTransitions() should already have made it an array...
+	const c = Array.isArray(h.class) ? h.class[0] : h.class;
 	slideLayoutMenu.submenu.push({
-	  label: layout.name,
-	  click: () => mainWindow.webContents.send('set-slide-layout', layout.class)
+	  label: n,
+	  click: () => mainWindow.webContents.send('set-slide-layout', c)
 	});
+      }
     }
   }
 
@@ -562,11 +566,14 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
       defTransMenu.submenu = defaultTransitions;
     } else {
       defTransMenu.submenu = [];
-      for (const transition of json.transitions)
+      for (const h of json.transitions) {
+	const n = h.name;
+	const c = h.class;
 	defTransMenu.submenu.push({
-	  label: transition.name,
-	  click: () => mainWindow.webContents.send('set-default-transition', transition.class)
+	  label: n,
+	  click: () => mainWindow.webContents.send('set-default-transition', c)
 	});
+      }
     }
   }
 
@@ -581,11 +588,14 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
       slideTransMenu.submenu = defaultTransitions;
     } else {
       slideTransMenu.submenu = [];
-      for (const transition of json.transitions)
+      for (const h of json.transitions) {
+	const n = h.name;
+	const c = h.class;
 	slideTransMenu.submenu.push({
-	  label: transition.name,
-	  click: () => mainWindow.webContents.send('set-slide-transition', transition.class)
+	  label: n,
+	  click: () => mainWindow.webContents.send('set-slide-transition', c)
 	});
+      }
     }
   }
 
