@@ -14,6 +14,21 @@ A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 - **Play Mode**: Preview slides in browser with b6plus presentation mode
 - **Thumbnail Previews**: Visual thumbnails of all slides in the sidebar
 
+## Pre-built installers
+
+| Version | Debian (amd64) | MacOS (arm64) | MacOS (Intel) | Windows (installer) | Windows (executable) |
+|---------|----------------|---------------|---------------|---------------------|----------------------|
+| 0.1.0   | [b6plus-slide-editor_0.1.0_amd64.deb](https://bert-github.github.io/b6plus-slide-editor/dist/b6plus-slide-editor_0.1.0_amd64.deb) | [B6+ Slide Editor-0.1.0-arm64.dmg](https://bert-github.github.io/b6plus-slide-editor/dist/B6+%20Slide%20Editor-0.1.0-arm64.dmg) | [B6+ Slide Editor-0.1.0.dmg](https://bert-github.github.io/b6plus-slide-editor/dist/B6+%20Slide%20Editor-0.1.0.dmg) | [B6+ Slide Editor Setup 0.1.0.exe](https://bert-github.github.io/b6plus-slide-editor/dist/B6+%20Slide%20Editor%20Setup%200.1.0.exe) | [B6+ Slide Editor 0.1.0.exe](https://bert-github.github.io/b6plus-slide-editor/dist/B6+%20Slide%20Editor%200.1.0.exe) |
+
+## Before checking out from GitHub
+
+The installers for various platforms are very large files. You'll need
+to have Git LFS (Git Large File Support) installed before you clone
+the repository, otherwise you'll only get a placeholder file. Git LFS
+is provided by a package called git-lfs in Debian and in MacPorts. Or
+see the [Git LFS
+documentation](https://github.com/git-lfs/git-lfs/blob/main/README.md).
+
 ## Installation
 
 1. Make sure you have Node.js installed (version 16 or higher recommended)
@@ -121,11 +136,11 @@ The editor creates HTML files with the following structure:
     <section class="slide">
         <!-- Slide content -->
     </section>
-    
+
     <section class="comment">
         <!-- Speaker notes -->
     </section>
-    
+
     <!-- More slides... -->
 </body>
 </html>
