@@ -1,25 +1,4 @@
 class SlideEditor {
-  constructor()
-  {
-    this.slides = [];
-    this.currentSlideIndex = 0;
-    this.currentFilePath = null;
-    this.fileDirectory = null;
-    this.cssUrl = '';
-    this.customCss = '';
-    this.includeB6plus = true;
-    this.isHtmlView = false;
-    this.editorView = null;
-    this.editorFrame = null;
-    this.editor = null;
-    this.zoomLevel = 1.0;
-    this.hasUnsavedChanges = false;
-    this.defaultTransition = '';
-
-    this.initializeUI();
-    this.setupEventListeners();
-    this.addInitialSlide();
-  }
 
   // This list of block elements should be the same as the
   // block-format drop down and the Format menu.
@@ -37,6 +16,33 @@ class SlideEditor {
     { "name": "Default",
       "class": "" }
   ];
+
+  constructor()
+  {
+    this.slides = [];
+    this.currentSlideIndex = 0;
+    this.currentFilePath = null;
+    this.fileDirectory = null;
+    this.cssUrl = '';
+    this.cssUrlInfo = {
+      "supports-clear": true,
+      layouts: SlideEditor.defaultLayouts,
+      transitions: SlideEditor.defaultTransitions
+    };
+    this.customCss = '';
+    this.includeB6plus = true;
+    this.isHtmlView = false;
+    this.editorView = null;
+    this.editorFrame = null;
+    this.editor = null;
+    this.zoomLevel = 1.0;
+    this.hasUnsavedChanges = false;
+    this.defaultTransition = '';
+
+    this.initializeUI();
+    this.setupEventListeners();
+    this.addInitialSlide();
+  }
 
   initializeUI()
   {
@@ -144,6 +150,17 @@ class SlideEditor {
 
     // Initial path update
     this.updateElementPath();
+  }
+
+  // Construct the class attribute for a slide
+  makeClassName(slide)
+  {
+    let classes = slide.type === 'slide' ? 'slide' : 'comment';
+    if (slide.styleClass) classes += ' ' + slide.styleClass;
+    if (slide.slideClear) classes += ' clear';
+    if (slide.slideTextfit) classes += ' textfit';
+    if (slide.otherClasses) classes += ' ' + slide.otherClasses;
+    return classes;
   }
 
   updateElementPath()
@@ -432,8 +449,6 @@ class SlideEditor {
     const slide = {
       type: 'slide',
       content: '<p>New slide content</p>',
-      styleClass: '',
-      transition: ''
     };
 
     // Find the insertion point: after the current slide and its notes
@@ -467,8 +482,6 @@ class SlideEditor {
     const notes = {
       type: 'notes',
       content: '<p>Speaker notes</p>',
-      styleClass: '',
-      transition: ''
     };
 
     // Insert notes after the slide
@@ -632,12 +645,10 @@ class SlideEditor {
 
     html += '</head><body class="b6plus">';
 
-    let classes = slide.type === 'slide' ? 'slide' : 'comment';
-    if (slide.styleClass) classes += ' ' + slide.styleClass;
-    if (slide.slideClear) classes += ' clear';
-    if (slide.slideTextfit) classes += ' textfit';
+    const classes = this.makeClassName(slide);
+    const id = slide.id ? ` id="${slide.id}"` : '';
 
-    html += `<section class="${classes}" style="counter-reset: slide ${slideNumber - 1}">${slide.content}</section>`;
+    html += `<section${id} class="${classes}" style="counter-reset: slide ${slideNumber - 1}">${slide.content}</section>`;
     html += '</body></html>';
 
     tempDoc.write(html);
@@ -653,7 +664,8 @@ class SlideEditor {
         logging: false,
 	windowWidth: 1920,
 	windowHeight: 1080,
-        useCORS: true
+        useCORS: true,
+	allowTaint: true
       });
 
       // Clear thumbnail and add canvas
@@ -695,10 +707,8 @@ class SlideEditor {
     if (this.editorFrame && this.editorFrame.contentDocument) {
       const wrapper = this.editorFrame.contentDocument.getElementById('slide-wrapper');
       if (wrapper) {
-        // Set base class
-        const baseClass = slide.type === 'slide' ? 'slide' : 'comment';
-        // Add style class if present
-        wrapper.className = slide.styleClass ? `${baseClass} ${slide.styleClass}` : baseClass;
+	wrapper.className = this.makeClassName(slide);
+
         // Reset CSS counter to make slide numbers display correctly
         wrapper.style.counterReset = `slide ${slideNumber - 1}`;
       }
@@ -794,36 +804,45 @@ class SlideEditor {
   }
 
   // Update the slide layouts and slide transitions menus
-  async updateLayoutsAndTransitions() {
-    if (!this.cssUrl) return;
-    const jsonPath = this.cssUrl.replace(/\.css$/i, '') + '.json';
-
-    const result = await window.electronAPI.readFile(jsonPath);
-    if (!result.success) {
-      console.log(`No menu config found at ${jsonPath}. Error was:\n${result.error}\nUsing defaults`);
-      result.content = '{}';
-    }
-
+  async updateLayoutsAndTransitions()
+  {
     let json = {};
-    try {
-      json = JSON.parse(result.content);
-    } catch (err) {
-      window.alert(`Found a JSON file with layouts and transitions,\n\n${jsonPath}\n\nbut it has an error:\n\n${err.message}\n\nUsing defaults instead.`);
+
+    if (this.cssUrl) {
+      const jsonPath = this.cssUrl.replace(/\.css$/i, '') + '.json';
+
+      const result = await window.electronAPI.readFile(jsonPath);
+      if (!result.success) {
+	console.log(`No menu config found at ${jsonPath}. Error was:\n${result.error}\nUsing defaults`);
+	result.content = '{}';
+      }
+
+      try {
+	json = JSON.parse(result.content);
+      } catch (err) {
+	window.alert(`Found a JSON file with layouts and transitions,\n\n${jsonPath}\n\nbut it has an error:\n\n${err.message}\n\nUsing defaults instead.`);
+      }
     }
 
-    // Use defaults for values that are not provided
-    json.layouts ??= SlideEditor.defaultLayouts;
-    json.transitions ??= SlideEditor.defaultTransitions;
-    json['supports-clear'] ??= true;
+    // Update the stored information about the current style.
+    // Use defaults for values that are not provided.
+    this.cssUrlInfo["supports-clear"] = json['supports-clear'] ?? true;
+    this.cssUrlInfo.layouts = json.layouts ?? SlideEditor.defaultLayouts;
+    this.cssUrlInfo.transitions = json.transitions
+      ?? SlideEditor.defaultTransitions;
+
+    // Make sure all the class fields contain arrays, not single strings.
+    for (const layout of this.cssUrlInfo.layouts)
+      if (!Array.isArray(layout.class)) layout.class = [layout.class];
 
     // Update the menus
-    window.electronAPI.updateLayoutAndTransitionsMenus(json);
+    window.electronAPI.updateLayoutAndTransitionsMenus(this.cssUrlInfo);
 
     // Update the dropdown menu of slide layouts
     const styleSelect = document.getElementById('slide-style');
     if (styleSelect) {
       styleSelect.innerText = '';
-      for (const layout of json.layouts) {
+      for (const layout of this.cssUrlInfo.layouts) {
 	const option = document.createElement('option');
 	option.setAttribute('value', layout.class);
 	option.append("" + layout.name);
@@ -836,8 +855,9 @@ class SlideEditor {
     // Show or hide the Clear button and menu
     const clearLabel = document.getElementById('slide-clear-label');
     if (clearLabel)
-      clearLabel.style.display = json['supports-clear'] ? null : 'none';
-    window.electronAPI.showHideClear(json['supports-clear']);
+      clearLabel.style.display = this.cssUrlInfo['supports-clear']
+      ? null : 'none';
+    window.electronAPI.showHideClear(this.cssUrlInfo['supports-clear']);
   }
 
   applyCssToFrame() {
@@ -898,10 +918,7 @@ class SlideEditor {
     // Update the wrapper in the iframe
     if (this.editorFrame && this.editorFrame.contentDocument) {
       const wrapper = this.editorFrame.contentDocument.getElementById('slide-wrapper');
-      if (wrapper) {
-        const baseClass = currentSlide.type === 'slide' ? 'slide' : 'comment';
-        wrapper.className = styleClass ? `${baseClass} ${styleClass}` : baseClass;
-      }
+      if (wrapper) wrapper.className = this.makeClassName(currentSlide);
     }
   }
 
@@ -1087,12 +1104,8 @@ class SlideEditor {
     html += `</head>\n<body class="${bodyClass}">\n`;
 
     this.slides.forEach(slide => {
-      const baseClassName = slide.type === 'slide' ? 'slide' : 'comment';
-      const classes = [baseClassName];
-      if (slide.styleClass) classes.push(slide.styleClass);
-      if (slide.transition) classes.push(slide.transition);
-      const fullClassName = classes.join(' ');
-      html += `    <section class="${fullClassName}">\n`;
+      const id = slide.id ? ` id="${slide.id}"` : '';
+      html += `    <section${id} class="${this.makeClassName(slide)}">\n`;
       html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
       html += '    </section>\n';
     });
@@ -1144,12 +1157,8 @@ class SlideEditor {
     html += `</head>\n<body${bodyClass}>\n`;
 
     this.slides.forEach(slide => {
-      const baseClassName = slide.type === 'slide' ? 'slide' : 'comment';
-      const classes = [baseClassName];
-      if (slide.styleClass) classes.push(slide.styleClass);
-      if (slide.transition) classes.push(slide.transition);
-      const fullClassName = classes.join(' ');
-      html += `    <section class="${fullClassName}">\n`;
+      const id = slide.id ? ` id="${slide.id}"` : '';
+      html += `    <section${id} class="${this.makeClassName(slide)}">\n`;
       html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
       html += '    </section>\n';
     });
@@ -1221,40 +1230,58 @@ class SlideEditor {
     document.getElementById('include-b6plus').checked = this.includeB6plus;
 
     // Extract default transition from body
-    const transitionClasses = ['slide-in', 'slide-out', 'move-left', 'slide-up', 'move-up',
-      'flip-up', 'turn-up', 'flip-left', 'center-out', 'wipe-left',
-      'zigzag-left', 'zigzag-right', 'cut-in', 'assemble'];
-    const bodyClassList = Array.from(doc.body.classList);
-    const defaultTransition = bodyClassList.find(c => transitionClasses.includes(c)) || '';
-    this.defaultTransition = defaultTransition;
+    this.defaultTransition = '';
+    for (const t of this.cssUrlInfo.transitions)
+      if (t.class
+	  && t.class.split(' ').every(c => doc.body.classList.contains(c))) {
+	this.defaultTransition = t.class;
+	break;
+      }
 
     // Extract slides
     this.slides = [];
     const sections = doc.querySelectorAll('body > .slide, body > .comment');
 
     sections.forEach(section => {
-      // const classList = Array.from(section.classList);
-      let layout = []
-      let type = 'slide', textfit = false, clear = false, transition = '';
-      for (const c of section.classList) {
-	switch (c) {
-	case 'comment': type = 'notes'; break;
-	case 'slide': type = 'slide'; break;
-	case 'textfit': textfit = true; break;
-	case 'clear': clear = true; break;
-	default:
-	  if (transitionClasses.includes(c)) transition = c;
-	  else layout.push(c);
-	}
-      }
+      // Find the type and remove it from the classes.
+      const type = section.classList.contains('comment') ? 'comment' : 'slide';
+      section.classList.remove(type);
+
+      // Find if the slide uses class=clear, and remove it from the classes.
+      let clear = section.classList.contains('clear');
+      if (clear) section.classList.remove('clear');
+
+      // Find if the slide uses class=textfit, and remove it from the classes.
+      let textfit = section.classList.contains('textfit');
+      if (textfit) section.classList.remove('textfit');
+
+      // Find the slide's transition, if any, and remove it from the classes.
+      let transition = '';
+      for (const t of this.cssUrlInfo.transitions)
+	if (t.class
+	    && t.class.split(' ').every(c => section.classList.contains(c)))
+	  transition = t.class;
+      if (transition)
+	for (const c of transition.split(' ')) section.classList.remove(c);
+
+      // Find the slide's layout class, if any, and remove it from the classes.
+      let layout = '';
+      for (const layout of this.cssUrlInfo.layouts)
+	for (const x of layout.class)
+	  if (x && x.split(' ').every(c => section.classList.contains(c)))
+	    layout = layout.class[0]; // The first entry is the canonical one
+      if (layout)
+	for (const c of layout.split(' ')) section.classList.remove(c);
 
       this.slides.push({
         type: type,
         content: section.innerHTML.trim(),
-        styleClass: layout.join(' '),
+	styleClass: layout,
         transition: transition,
         slideTextfit: textfit,
-        slideClear: clear
+        slideClear: clear,
+	otherClasses: section.className,
+	id: section.id
       });
     });
 
