@@ -54,9 +54,9 @@ You can also open a file directly from the command line:
 npm start path/to/slides.html
 ```
 
-Or in a built application:
+Or in an installed application:
 ```bash
-./SlideEditor path/to/slides.html
+b6plus-slide-editor path/to/slides.html
 ```
 
 ### Opening Files
