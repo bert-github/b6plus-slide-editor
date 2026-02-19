@@ -370,7 +370,7 @@ function createWindow() {
       mainWindow.webContents.send('check-unsaved-changes');
     }
   });
-  
+
   // Open file from command line if provided
   const fileToOpen = process.argv.find(arg => arg.endsWith('.html') && !arg.includes('index.html'));
   if (fileToOpen) {
@@ -389,10 +389,21 @@ function createWindow() {
     website: "https://www.w3.org/Talks/Tools/b6plus-editor/manual.html", // string (optional) Linux - The app's website.
     iconPath: "b6plus-logo.png", // string (optional) Linux Windows - Path to the app's icon in a JPEG or PNG file format. On Linux, will be shown as 64x64 pixels while retaining aspect ratio. On Windows, a 48x48 PNG will result in the best visual quality.
   });
-  
+
   const menu = Menu.buildFromTemplate(template);
-  
+
   Menu.setApplicationMenu(menu);
+
+  const { session } = require('electron');
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+	...details.responseHeaders,
+	'Content-Security-Policy': ['style-src http: file: data: \'unsafe-inline\'; img-src http: file: data:; font-src http: file: data:; script-src \'self\'; default-src \'none\'']
+      }
+    })
+  })
 }
 
 async function openFile() {
@@ -409,7 +420,7 @@ async function openFile() {
       const filePath = result.filePaths[0];
       const content = fs.readFileSync(filePath, 'utf-8');
       const directory = path.dirname(filePath);
-      
+
       mainWindow.webContents.send('file-opened', {
         path: filePath,
         directory: directory,
