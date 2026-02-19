@@ -11,7 +11,7 @@ A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 - **Custom CSS**: Add additional CSS rules to override or complement external styles
 - **Slide Management**: Add, delete, and navigate between slides easily
 - **File Operations**: Open, save, and create new slide decks
-- **Play Mode**: Preview slides in browser with b6plus presentation mode
+- **Play Mode**: Preview slides in browser with b6+ presentation mode
 - **Thumbnail Previews**: Visual thumbnails of all slides in the sidebar
 
 ## Pre-built installers
