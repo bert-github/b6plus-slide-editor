@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, MenuItem, dialog, ipcMain } = require('electron');
 const path = require('path');
-const fs = require('fs').promises;
+//const fs = require('fs').promises;
+const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
 
 let mainWindow;
@@ -323,6 +324,12 @@ const template = [
 	//   const win = new BrowserWindow({});
 	//   win.loadURL('https://www.w3.org/Talks/Tools/b6plus-editor/manual.html');
 	// }
+      },
+      {
+	label: 'Style Help',
+	id: 'style-help',
+	enabled: false,
+	click: () => mainWindow.webContents.send('style-help')
       }
     ]
   }
@@ -330,7 +337,7 @@ const template = [
 
 async function openFileByPath(filePath) {
   try {
-    const content = await fs.readFile(filePath, 'utf-8');
+    const content = fs.readFileSync(filePath, 'utf-8');
     const directory = path.dirname(filePath);
     mainWindow.webContents.send('file-opened', {
       path: filePath,
@@ -354,7 +361,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile('src/index.html');
-  
+
   // Handle window close event
   mainWindow.on('close', (e) => {
     // Ask the renderer if there are unsaved changes
@@ -400,7 +407,7 @@ async function openFile() {
   if (!result.canceled && result.filePaths.length > 0) {
     try {
       const filePath = result.filePaths[0];
-      const content = await fs.readFile(filePath, 'utf-8');
+      const content = fs.readFileSync(filePath, 'utf-8');
       const directory = path.dirname(filePath);
       
       mainWindow.webContents.send('file-opened', {
@@ -431,7 +438,7 @@ ipcMain.handle('save-file-dialog', async (event, currentPath) => {
 
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
-    await fs.writeFile(filePath, content, 'utf-8');
+    fs.writeFileSync(filePath, content, 'utf-8');
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -445,7 +452,7 @@ ipcMain.handle('read-file', async (event, filePath) => {
   } else {
     filePath = filePath.replace(/^file:\/\//i, '');
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
+      const content = fs.readFileSync(filePath, 'utf-8');
       return {content: content, success: true, error: null};
     } catch (err) {
       // throw new Error(`Failed to read file: ${err.message}`);
@@ -492,9 +499,9 @@ ipcMain.handle('write-temp-file', async (event, content) => {
   const os = require('os');
   const tempDir = os.tmpdir();
   const tempFilePath = path.join(tempDir, 'slide-deck-preview.html');
-  
+
   try {
-    await fs.writeFile(tempFilePath, content, 'utf-8');
+    fs.writeFileSync(tempFilePath, content, 'utf-8');
     return { success: true, path: tempFilePath };
   } catch (err) {
     return { success: false, error: err.message };
@@ -506,7 +513,8 @@ ipcMain.handle('get-temp-file-path', async () => {
   const os = require('os');
   const tempDir = os.tmpdir();
   const tempFilePath = path.join(tempDir, 'slide-deck-preview.html');
-  return tempFilePath;
+  const resolvedPath = fs.realpathSync(tempFilePath);
+  return resolvedPath;
 });
 
 ipcMain.handle('open-in-browser', async (event, url) => {
@@ -523,7 +531,7 @@ ipcMain.handle('open-in-browser', async (event, url) => {
 // Handle a request to replace the slide layout and transition menus
 ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
   // The application menu cannot be changed (we cannot add or remove
-  // items), it can only be replaced. So instad we update the template
+  // items), it can only be replaced. So instead we update the template
   // and create a new application menu from that.
 
   // Find the Slide menu
@@ -601,6 +609,10 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
 
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
+
+  // Also enable/disable the style help menu item.
+  const styleHelp = menu.getMenuItemById('style-help');
+  if (styleHelp) styleHelp.enabled = !!json.documentation;
 });
 
 // Update the checkbox of the Clear menu item

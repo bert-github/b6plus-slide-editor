@@ -25,6 +25,7 @@ class SlideEditor {
     this.fileDirectory = null;
     this.cssUrl = '';
     this.cssUrlInfo = {
+      documentation: null,
       "supports-clear": true,
       layouts: SlideEditor.defaultLayouts,
       transitions: SlideEditor.defaultTransitions
@@ -344,6 +345,8 @@ class SlideEditor {
     window.electronAPI.onZoomIn(() => this.zoomIn());
     window.electronAPI.onZoomOut(() => this.zoomOut());
     window.electronAPI.onZoomReset(() => this.zoomReset());
+
+    window.electronAPI.onStyleHelp(() => this.styleHelp());
 
     // Toolbar buttons
     document.getElementById('play-slides').addEventListener('click', () => this.playSlides());
@@ -826,6 +829,8 @@ class SlideEditor {
 
     // Update the stored information about the current style.
     // Use defaults for values that are not provided.
+    this.cssUrlInfo.documentation = json.documentation
+      ? new URL(json.documentation, this.cssUrl).href : null;
     this.cssUrlInfo["supports-clear"] = json['supports-clear'] ?? true;
     this.cssUrlInfo.layouts = json.layouts ?? SlideEditor.defaultLayouts;
     this.cssUrlInfo.transitions = json.transitions
@@ -1061,7 +1066,8 @@ class SlideEditor {
     }
   }
 
-  async generateHtmlForPlay() {
+  async generateHtmlForPlay()
+  {
     let html = '<!DOCTYPE html>\n<html lang="en">\n<head>\n';
     html += '    <meta charset="UTF-8">\n';
     html += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
@@ -1075,16 +1081,10 @@ class SlideEditor {
     if (this.cssUrl) {
       let cssPath = this.cssUrl;
 
-      // If it's a file:// URL, make it relative to the base directory
-      if (cssPath.startsWith('file://') && this.fileDirectory) {
-        const cleanPath = cssPath.replace('file://', '');
-        cssPath = await window.electronAPI.makeRelativePath(
-          this.fileDirectory + '/dummy.html',
-          cleanPath
-        );
-      }
-      // If it's http/https, use as-is
-      // If it's already a relative path, use as-is
+      // If it's not a URL, make it relative to the base
+      if (!cssPath.match(/^[a-z]+:/i) && this.fileDirectory)
+	cssPath = await window.electronAPI.makeRelativePath(
+	  this.fileDirectory + '/', cssPath);
 
       html += `    <link rel="stylesheet" href="${cssPath}">\n`;
     }
@@ -1333,6 +1333,16 @@ class SlideEditor {
       range.selectNodeContents(wrapper);
       selection.removeAllRanges();
       selection.addRange(range);
+    }
+  }
+
+  // User selected the Style Help menu item
+  async styleHelp()
+  {
+    if (this.cssUrlInfo.documentation) {
+      const result = await
+        window.electronAPI.openInBrowser(this.cssUrlInfo.documentation);
+      if (!result.success) alert('Error opening browser: ' + result.error);
     }
   }
 
