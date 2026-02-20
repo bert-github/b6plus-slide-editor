@@ -24,7 +24,7 @@
           <input id="slide-clear" type="checkbox">
 	  Clear
 	</label>
-	<label>
+	<label title="Shrink text to fit during play">
           <input id="slide-textfit" type="checkbox">
 	  Text Fit
 	</label>
@@ -52,11 +52,13 @@
 
     <div class="formatting-toolbar">
       <div class="toolbar-section">
-        <button id="format-bold" title="Bold (Cmd/Ctrl+B)" class="format-button"><b>B</b></button>
-        <button id="format-italic" title="Italic (Cmd/Ctrl+I)" class="format-button"><i>I</i></button>
+        <button id="format-strong" title="Strong (Cmd/Ctrl+B)" class="format-button"><strong>strong</strong></button>
+        <button id="format-emphasis" title="Emphasis (Cmd/Ctrl+I)" class="format-button"><em>em</em></button>
+        <button id="format-bold" title="Bold" class="format-button"><b>B</b></button>
+        <button id="format-italic" title="Italic" class="format-button"><i>I</i></button>
         <button id="format-underline" title="Underline (Cmd/Ctrl+U)" class="format-button"><u>U</u></button>
         <button id="format-strikethrough" title="Strikethrough" class="format-button"><s>S</s></button>
-        <button id="format-code" title="Code" class="format-button">&lt;/&gt;</button>
+        <button id="format-code" title="Code" class="format-button"><code>code</code></button>
       </div>
 
       <div class="toolbar-section">
@@ -66,6 +68,7 @@
 
       <div class="toolbar-section">
         <select id="block-format" title="Block Format">
+	  <option value="">Block elements &amp containers</option>
           <option value="p">Paragraph</option>
           <option value="h1">Heading 1</option>
           <option value="h2">Heading 2</option>
@@ -73,19 +76,25 @@
           <option value="h4">Heading 4</option>
           <option value="h5">Heading 5</option>
           <option value="h6">Heading 6</option>
-          <option value="blockquote">Blockquote</option>
-          <option value="pre">Preformatted</option>
-          <option value="div">Division</option>
           <option value="address">Address</option>
+          <option value="pre">Preformatted</option>
+	  <hr>
+          <option value="blockquote">Blockquote</option>
+          <option value="div">Division</option>
           <option value="details">Details</option>
           <option value="article">Article</option>
+          <option value="section">Section</option>
           <option value="aside">Aside</option>
-        </select>
+	  <hr>
+	  <option value="unwrap">Remove container</option>
+	</select>
       </div>
 
       <div class="toolbar-section">
         <button id="format-ul" title="Bulleted List" class="format-button">• List</button>
         <button id="format-ol" title="Numbered List" class="format-button">1. List</button>
+	<button id="increase-list-level" title="Push into sub-list" class="format-button">+ List</button>
+	<button id="decrease-list-level" title="Pull out of sub-list" class="format-button">− List</button>
       </div>
 
       <div class="toolbar-section">
