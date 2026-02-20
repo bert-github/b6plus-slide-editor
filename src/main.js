@@ -553,9 +553,9 @@ ipcMain.handle('get-temp-file-path', async () => {
   // Get the path where temp file will be written
   const os = require('os');
   const tempDir = os.tmpdir();
-  const tempFilePath = path.join(tempDir, 'slide-deck-preview.html');
-  const resolvedPath = fs.realpathSync(tempFilePath);
-  return resolvedPath;
+  const resolvedDir = fs.realpathSync(tempDir);
+  const tempFilePath = path.join(resolvedDir, 'slide-deck-preview.html');
+  return tempFilePath;
 });
 
 ipcMain.handle('open-in-browser', async (event, url) => {
