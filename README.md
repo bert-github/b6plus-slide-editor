@@ -24,7 +24,7 @@ A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 
 The installers for various platforms are very large files. You'll need
 to have Git LFS (Git Large File Support) installed before you clone
-the repository, otherwise you'll only get a placeholder file. Git LFS
+the repository, otherwise you'll only get placeholder files. Git LFS
 is provided by a package called git-lfs in Debian and in MacPorts. Or
 see the [Git LFS
 documentation](https://github.com/git-lfs/git-lfs/blob/main/README.md).
