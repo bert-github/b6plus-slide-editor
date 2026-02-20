@@ -330,11 +330,7 @@ class SlideEditor {
     window.electronAPI.onRedo(() => this.redo());
     window.electronAPI.onSelectAll(() => this.selectAll());
 
-    window.electronAPI.onFormatBold(() => this.formatBold());
-    window.electronAPI.onFormatItalic(() => this.formatItalic());
-    window.electronAPI.onFormatUnderline(() => this.formatUnderline());
-    window.electronAPI.onFormatStrikethrough(() => this.formatStrikethrough());
-    window.electronAPI.onFormatCode(() => this.formatCode());
+    window.electronAPI.onFormatInline((ev,format) => this.formatInline(format));
     window.electronAPI.onFormatLink(() => this.formatLink());
     window.electronAPI.onFormatRemoveFormat(() => this.formatRemoveFormat());
     window.electronAPI.onFormatBlock((data) => this.setBlockFormat(data)),
@@ -358,16 +354,20 @@ class SlideEditor {
     document.getElementById('edit-custom-css').addEventListener('click', () => this.openCustomCssModal());
 
     // Formatting toolbar buttons
+    document.getElementById('format-strong').addEventListener('click',
+      () => this.formatInline('strong'));
+    document.getElementById('format-emphasis').addEventListener('click',
+      () => this.formatInline('em'));
     document.getElementById('format-bold').addEventListener('click',
-      () => this.formatBold());
+      () => this.formatInline('b'));
     document.getElementById('format-italic').addEventListener('click',
-      () => this.formatItalic());
+      () => this.formatInline('i'));
     document.getElementById('format-underline').addEventListener('click',
-      () => this.formatUnderline());
+      () => this.formatInline('u'));
     document.getElementById('format-strikethrough').addEventListener('click',
-      () => this.formatStrikethrough());
+      () => this.formatInline('s'));
     document.getElementById('format-code').addEventListener('click',
-      () => this.formatCode());
+      () => this.formatInline('code'));
     document.getElementById('format-link').addEventListener('click',
       () => this.formatLink());
     document.getElementById('format-removeformat').addEventListener('click',
@@ -376,6 +376,10 @@ class SlideEditor {
       () => this.formatUl());
     document.getElementById('format-ol').addEventListener('click',
       () => this.formatOl());
+    document.getElementById('increase-list-level').addEventListener('click',
+      () => this.increaseListLevel());
+    document.getElementById('decrease-list-level').addEventListener('click',
+      () => this.decreaseListLevel());
     document.getElementById('block-format').addEventListener('change',
       e => this.setBlockFormat(e.target.value));
     document.getElementById('edit-class').addEventListener('click',
@@ -1350,19 +1354,25 @@ class SlideEditor {
     if (!this.editor || this.isHtmlView) return;
 
     // Get current format state from Squire
-    const isBold = this.editor.hasFormat('b') || this.editor.hasFormat('strong');
-    const isItalic = this.editor.hasFormat('i') || this.editor.hasFormat('em');
+    const isStrong = this.editor.hasFormat('strong');
+    const isEmphasis = this.editor.hasFormat('em');
+    const isBold = this.editor.hasFormat('b');
+    const isItalic = this.editor.hasFormat('i');
     const isUnderline = this.editor.hasFormat('u');
     const isStrikethrough = this.editor.hasFormat('s') || this.editor.hasFormat('strike');
     const isCode = this.editor.hasFormat('code');
 
     // Update button states
+    const strongBtn = document.getElementById('format-strong');
+    const emphasisBtn = document.getElementById('format-emphasis');
     const boldBtn = document.getElementById('format-bold');
     const italicBtn = document.getElementById('format-italic');
     const underlineBtn = document.getElementById('format-underline');
     const strikeBtn = document.getElementById('format-strikethrough');
     const codeBtn = document.getElementById('format-code');
 
+    if (strongBtn) strongBtn.classList.toggle('active', isStrong);
+    if (emphasisBtn) emphasisBtn.classList.toggle('active', isEmphasis);
     if (boldBtn) boldBtn.classList.toggle('active', isBold);
     if (italicBtn) italicBtn.classList.toggle('active', isItalic);
     if (underlineBtn) underlineBtn.classList.toggle('active', isUnderline);
@@ -1371,53 +1381,16 @@ class SlideEditor {
   }
 
   // Formatting methods
-  formatBold() {
-    if (this.editor && !this.isHtmlView) {
-      const isBold = this.editor.hasFormat('b')
-        || this.editor.hasFormat('strong');
-      if (isBold) this.editor.removeBold();
-      else this.editor.bold();
-      this.updateFormatButtonStates();
-    }
+  formatInline(format)
+  {
+    if (!this.editor || this.isHtmlView) return;
+    if (this.editor.hasFormat(format))
+      this.editor.changeFormat(null, {tag: format});
+    else
+      this.editor.changeFormat({tag: format});
+    this.updateFormatButtonStates();
   }
 
-  formatItalic() {
-    if (this.editor && !this.isHtmlView) {
-      const isItalic = this.editor.hasFormat('i')
-        || this.editor.hasFormat('em');
-      if (isItalic) this.editor.removeItalic();
-      else this.editor.italic();
-      this.updateFormatButtonStates();
-    }
-  }
-
-  formatUnderline() {
-    if (this.editor && !this.isHtmlView) {
-      const isUnderline = this.editor.hasFormat('u');
-      if (isUnderline) this.editor.removeUnderline();
-      else this.editor.underline();
-      this.updateFormatButtonStates();
-    }
-  }
-
-  formatStrikethrough() {
-    if (this.editor && !this.isHtmlView) {
-      const isStrikethrough = this.editor.hasFormat('s')
-        || this.editor.hasFormat('strike');
-      if (isStrikethrough) this.editor.removeStrikethrough();
-      else this.editor.strikethrough();
-      this.updateFormatButtonStates();
-    }
-  }
-
-  formatCode() {
-    if (this.editor && !this.isHtmlView) {
-      const isCode = this.editor.hasFormat('code');
-      if (isCode) this.editor.removeCode();
-      else this.editor.code();
-      this.updateFormatButtonStates();
-    }
-  }
 
   formatLink() {
     if (!this.editor || this.isHtmlView) return;
@@ -1493,23 +1466,80 @@ class SlideEditor {
     if (this.editor && !this.isHtmlView) this.editor.makeOrderedList();
   }
 
+  increaseListLevel()
+  {
+    if (this.editor && !this.isHtmlView) this.editor.increaseListLevel();
+  }
+
+  decreaseListLevel()
+  {
+    if (this.editor && !this.isHtmlView) this.editor.decreaseListLevel();
+  }
+
+  // Replace an element by one with same attributes & children, but a new name
+  renameElement(element, newName)
+  {
+    const newElement = element.ownerDocument.createElement(newName);
+    for (const attr of element.attributes)
+      newElement.setAttribute(attr.name, attr.value);
+    newElement.append(...element.childNodes);
+    if (element.parentNode) element.replaceWith(newElement);
+    return newElement;
+  }
+
   setBlockFormat(format) {
     if (!this.editor || this.isHtmlView) return;
 
-    const frameDoc = this.editorFrame.contentDocument;
+    if (format === 'unwrap') {
 
-    this.editor.modifyBlocks(fragment => {
-      const newElement = frameDoc.createElement(format);
-      const oldElement = fragment.firstChild;
-      // Copy attributes
-      for (let i = 0; i < oldElement.attributes.length; i++) {
-	const attr = oldElement.attributes[i];
-	newElement.setAttribute(attr.name, attr.value);
-      }
-      newElement.append(...oldElement.childNodes);
-      fragment.replaceChildren(newElement);
-      return fragment;
-    });
+      const frameDoc = this.editorFrame.contentDocument;
+      const editorElement = frameDoc.getElementById('slide-wrapper');
+      const selection = this.editor.getSelection();
+      let container, e = selection.commonAncestorContainer;
+      while (!container && e && e !== editorElement && e !== frameDoc)
+	if (['BLOCKQUOTE', 'DIV', 'DETAILS', 'ARTICLE', 'SECTION', 'ASIDE']
+	    .includes(e.nodeName)) container = e;
+        else e = e.parentNode;
+      if (container) {
+	this.editor.modifyBlocks(frag => {
+	  if (container.firstElementChild?.tagName === 'SUMMARY')
+	    this.renameElement(container.firstElementChild, 'p');
+	  if (frag.firstChild !== container)
+	    container.replaceWith(...container.childNodes);
+	  else
+	    frag.replaceChildren(...container.childNodes);
+	  return frag;
+	});
+      } // else no container found, so do nothing.
+
+    } else if (format === 'blockquote') {
+
+      this.editor.increaseQuoteLevel();
+
+    } else if (format === 'div' || format === 'details' || format === 'article'
+	|| format == 'section' || format === 'aside') {
+
+      this.editor.modifyBlocks(fragment => {
+	const newElt = fragment.ownerDocument.createElement(format);
+	newElt.appendChild(fragment);
+	if (format === 'details')
+      	  this.renameElement(newElt.firstChild, 'summary');
+	return newElt;
+      });
+
+    } else {
+
+      this.editor.removeList();
+      this.editor.forEachBlock(block => {
+	if (block.tagName.toLowerCase() !== format) {
+	  if (block.parentElement?.tagName === 'DETAILS')
+	    this.renameElement(block.parentElement, 'div');
+	  this.renameElement(block, format);
+	};
+	return false;
+      },
+	true);
+    }
 
     this.updateElementPath();
     this.editor.focus();
