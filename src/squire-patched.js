@@ -3956,19 +3956,22 @@
         range = this.getSelection();
       }
       if (mutates) {
-        this.saveUndoState(range);
+        this._recordUndoState(range, this._isInUndoState);
       }
       const root = this._root;
       let start = getStartBlockOfRange(range, root);
       const end = getEndBlockOfRange(range, root);
+      let next;
       if (start && end) {
         do {
+          next = getNextBlock(start, root);
           if (fn(start) || start === end) {
             break;
           }
-        } while (start = getNextBlock(start, root));
+        } while (start = next);
       }
       if (mutates) {
+        this._getRangeAndRemoveBookmark(range);
         this.setSelection(range);
         this._updatePath(range, true);
       }
@@ -4077,19 +4080,21 @@
       }
       this._recordUndoState(range, this._isInUndoState);
       const type = list.nodeName;
-      let newParent = startLi.previousSibling;
-      let listAttrs;
-      let next;
-      if (newParent.nodeName !== type) {
-        listAttrs = this._config.tagAttributes[type.toLowerCase()];
+      const prevItem = startLi.previousSibling;
+      let newParent;
+      if (prevItem.lastChild && prevItem.lastChild.nodeName === type) {
+        newParent = prevItem.lastChild;
+      } else {
+        const listAttrs = this._config.tagAttributes[type.toLowerCase()];
         newParent = createElement(type, listAttrs);
-        list.insertBefore(newParent, startLi);
+        prevItem.appendChild(newParent);
       }
+      let next;
       do {
         next = startLi === endLi ? null : startLi.nextSibling;
         newParent.appendChild(startLi);
       } while (startLi = next);
-      next = newParent.nextSibling;
+      next = prevItem.nextSibling;
       if (next) {
         mergeContainers(next, root);
       }
