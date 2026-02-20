@@ -3956,19 +3956,22 @@
         range = this.getSelection();
       }
       if (mutates) {
-        this.saveUndoState(range);
+        this._recordUndoState(range, this._isInUndoState);
       }
       const root = this._root;
       let start = getStartBlockOfRange(range, root);
       const end = getEndBlockOfRange(range, root);
+      let next;
       if (start && end) {
         do {
+          next = getNextBlock(start, root);
           if (fn(start) || start === end) {
             break;
           }
-        } while (start = getNextBlock(start, root));
+        } while (start = next);
       }
       if (mutates) {
+        this._getRangeAndRemoveBookmark(range);
         this.setSelection(range);
         this._updatePath(range, true);
       }
