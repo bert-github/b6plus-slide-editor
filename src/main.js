@@ -113,27 +113,35 @@ const template = [
     label: 'Format',
     submenu: [
       {
-        label: 'Bold',
+        label: 'Strong',
         accelerator: 'CmdOrCtrl+B',
-        click: () => mainWindow.webContents.send('format-bold')
+        click: () => mainWindow.webContents.send('format-inline', 'strong')
+      },
+      {
+        label: 'Emphasis',
+        accelerator: 'CmdOrCtrl+I',
+        click: () => mainWindow.webContents.send('format-inline', 'em')
+      },
+      {
+        label: 'Bold',
+        click: () => mainWindow.webContents.send('format-inline', 'b')
       },
       {
         label: 'Italic',
-        accelerator: 'CmdOrCtrl+I',
-        click: () => mainWindow.webContents.send('format-italic')
+        click: () => mainWindow.webContents.send('format-inline', 'i')
       },
       {
         label: 'Underline',
         accelerator: 'CmdOrCtrl+U',
-        click: () => mainWindow.webContents.send('format-underline')
+        click: () => mainWindow.webContents.send('format-inline', 'u')
       },
       {
         label: 'Strikethrough',
-        click: () => mainWindow.webContents.send('format-strikethrough')
+        click: () => mainWindow.webContents.send('format-inline', 's')
       },
       {
         label: 'Code',
-        click: () => mainWindow.webContents.send('format-code')
+        click: () => mainWindow.webContents.send('format-inline', 'code')
       },
       { type: 'separator' },
       {
@@ -178,20 +186,25 @@ const template = [
 	    click: () => mainWindow.webContents.send('format-block', 'h6')
 	  },
 	  {
+	    label: 'Address',
+	    click: () => mainWindow.webContents.send('format-block', 'address')
+	  },
+	  {
+	    label: 'Preformatted',
+	    click: () => mainWindow.webContents.send('format-block', 'pre')
+	  }
+	]
+      },
+      {
+	label: 'Block containers',
+	submenu: [
+	  {
 	    label: 'Blockquote',
 	    click: () => mainWindow.webContents.send('formatquote')
 	  },
 	  {
-	    label: 'Pre',
-	    click: () => mainWindow.webContents.send('format-block', 'pre')
-	  },
-	  {
 	    label: 'Division',
 	    click: () => mainWindow.webContents.send('format-block', 'div')
-	  },
-	  {
-	    label: 'Address',
-	    click: () => mainWindow.webContents.send('format-block', 'address')
 	  },
 	  {
 	    label: 'Details',
@@ -202,8 +215,17 @@ const template = [
 	    click: () => mainWindow.webContents.send('format-block', 'article')
 	  },
 	  {
+	    label: 'Section',
+	    click: () => mainWindow.webContents.send('format-block', 'section')
+	  },
+	  {
 	    label: 'Aside',
 	    click: () => mainWindow.webContents.send('format-block', 'aside')
+	  },
+	  { type: 'separator' },
+	  {
+	    label: 'Remove container',
+	    click: () => mainWindow.webContents.send('format-block', 'unwrap')
 	  }
 	]
       },
@@ -214,6 +236,14 @@ const template = [
       {
         label: 'Numbered List',
         click: () => mainWindow.webContents.send('format-ol')
+      },
+      {
+	label: 'Push to sub-list',
+	click: () => mainWindow.webContents.send('increase-list-level')
+      },
+      {
+	label: 'Pull from sub-list',
+	click: () => mainWindow.webContents.send('decrease-list-level')
       },
       { type: 'separator' },
       {
