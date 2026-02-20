@@ -63,10 +63,10 @@ b6plus-slide-editor path/to/slides.html
 
 There are several ways to open a slide deck:
 
-1. **File menu** - File → Open... (Cmd/Ctrl+O)
-2. **Command line** - Pass the file path as an argument when starting the app
-3. **Drag and drop** - Drag an HTML file onto the application window
-4. **Double-click** - Associate .html files with the app and double-click (macOS/Windows)
+1. **File menu** – File → Open... (Cmd/Ctrl+O)
+2. **Command line** – Pass the file path as an argument when starting the app
+3. **Drag and drop** – Drag an HTML file onto the application window
+4. **Double-click** – Associate .html files with the app and double-click
 
 ## Building for Distribution
 
