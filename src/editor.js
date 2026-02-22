@@ -4,6 +4,9 @@ class SlideEditor {
   // block-format drop down and the Format menu.
   static blockElements = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'blockquote', 'pre', 'div', 'address', 'details', 'article', 'aside'];
+  static allBlockElements = ['ol', 'ul', 'dl', 'dt', 'dd', 'li', 'hr',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    ...SlideEditor.blockElements];
   static defaultLayouts = [
     { "name": "Normal slide",
       "class": "" },
@@ -70,6 +73,8 @@ class SlideEditor {
           <script src="${basePath}/squire-patched.js"></script>
           <style>
             body {margin: 0; padding: 0}
+            table:hover, table:hover td, table:hover th {
+              outline: thin dashed orange}
           </style>
         </head>
         <body class="b6plus">
@@ -77,6 +82,60 @@ class SlideEditor {
         </body>
       </html>`);
     frameDoc.close();
+  }
+
+  escapeHTML(text)
+  {
+    return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').
+      replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+  }
+
+  prettify(indent, ...nodes)
+  {
+    let text = '';
+    for (const n of nodes) {
+      switch (n.nodeType) {
+      case Node.ELEMENT_NODE:
+	const tag = n.nodeName.toLowerCase();
+	const isBlock = SlideEditor.allBlockElements.includes(tag);
+	const isEmpty = ['img', 'br', 'hr'].includes(tag);
+	const newIndent = isBlock ? indent + '  ' : indent;
+	const needsNL = isBlock && !text.endsWith('\n');
+	if (needsNL) text += '\n';
+	if (isBlock) text += indent;
+	text += '<' + tag;
+	text += this.prettify(newIndent, ...n.attributes);
+	text += '>';
+	text += this.prettify(newIndent, ...n.childNodes);
+	if (!isEmpty && isBlock && text.endsWith('\n')) text += indent;
+	if (!isEmpty) text += '</' + tag + '>';
+	if (isBlock) text += '\n';
+	break;
+      case Node.ATTRIBUTE_NODE:
+	text += ' ' + n.name + '="' + this.escapeHTML(n.value) + '"';
+	break;
+      case Node.TEXT_NODE:
+	text += this.escapeHTML(n.nodeValue);
+	break;
+      case Node.CDATA_SECTION_NODE:
+	text += '<!CDATA[' + n.nodeValue + ']]>';
+	break;
+      case Node.PROCESSING_INSTRUCTION_NODE:
+	text += '<?' + n.target + ' ' + n.nodeValue + '>';
+	break;
+      case Node.COMMENT_NODE:
+	text += '<!--' + n.nodeValue + '-->';
+	break;
+      case Node.DOCUMENT_NODE:
+	break;
+      case Node.DOCUMENT_TYPE_NODE:
+	text += '<DOCTYPE html>\n';
+	break;
+      case Node.DOCUMENT_FRAGMENT_NODE:
+	break;
+      }
+    }
+    return text;
   }
 
   async initializeSquire()
@@ -338,6 +397,14 @@ class SlideEditor {
     window.electronAPI.onFormatOl(() => this.formatOl());
     window.electronAPI.onEditClass(() => this.openClassDialog());
 
+    window.electronAPI.onMakeTable(() => this.makeTable());
+    window.electronAPI.onAddHeaderRow(() => this.addHeaderRow());
+    window.electronAPI.onAddRow(() => this.addRow());
+    window.electronAPI.onAddColumn(() => this.addColumn());
+    window.electronAPI.onDeleteRows(() => this.deleteRows());
+    window.electronAPI.onDeleteColumns(() => this.deleteColumns());
+    window.electronAPI.onToggleHeaderCell(() => this.toggleHeaderCell());
+
     window.electronAPI.onZoomIn(() => this.zoomIn());
     window.electronAPI.onZoomOut(() => this.zoomOut());
     window.electronAPI.onZoomReset(() => this.zoomReset());
@@ -384,6 +451,20 @@ class SlideEditor {
       e => this.setBlockFormat(e.target.value));
     document.getElementById('edit-class').addEventListener('click',
       () => this.openClassDialog());
+    document.getElementById('make-table').addEventListener('click',
+      () => this.makeTable());
+    document.getElementById('add-header-row').addEventListener('click',
+      () => this.addHeaderRow());
+    document.getElementById('add-row').addEventListener('click',
+      () => this.addRow());
+    document.getElementById('add-column').addEventListener('click',
+      () => this.addColumn());
+    document.getElementById('delete-rows').addEventListener('click',
+      () => this.deleteRows());
+    document.getElementById('delete-columns').addEventListener('click',
+      () => this.deleteColumns());
+    document.getElementById('toggle-header-cell').addEventListener('click',
+      () => this.toggleHeaderCell());
 
     // Stylesheet dialog
     document.getElementById('apply-stylesheet').addEventListener('click', () => this.applyStylesheet());
@@ -447,6 +528,7 @@ class SlideEditor {
   addInitialSlide()
   {
     this.addSlide();
+    this.loadCurrentSlide();
     // Reset unsaved changes flag since this is just initialization
     this.hasUnsavedChanges = false;
   }
@@ -459,21 +541,8 @@ class SlideEditor {
     };
 
     // Find the insertion point: after the current slide and its notes
-    let insertIndex = this.currentSlideIndex + 1;
-
-    // If we're currently on speaker notes, stay at the same position
-    // Otherwise, skip past any notes that follow the current slide
-    if (this.slides[this.currentSlideIndex]?.type === 'slide') {
-      // Skip past notes that follow this slide
-      while (insertIndex < this.slides.length && this.slides[insertIndex].type === 'notes') {
-        insertIndex++;
-      }
-    } else if (this.slides[this.currentSlideIndex]?.type === 'notes') {
-      // If on notes, skip past any additional notes
-      while (insertIndex < this.slides.length && this.slides[insertIndex].type === 'notes') {
-        insertIndex++;
-      }
-    }
+    let insertIndex = this.slides.length === 0 ? 0 : this.currentSlideIndex + 1;
+    while (this.slides[insertIndex]?.type === 'notes') insertIndex++;
 
     this.slides.splice(insertIndex, 0, slide);
     this.currentSlideIndex = insertIndex;
@@ -751,7 +820,8 @@ class SlideEditor {
       this.slides[this.currentSlideIndex].content = document.getElementById('html-editor').value;
     } else {
       if (this.editor)
-        this.slides[this.currentSlideIndex].content = this.editor.getHTML();
+	this.slides[this.currentSlideIndex].content =
+ 	  this.prettify('', ...this.editor.getRoot().childNodes);
     }
 
     if (this.slides[this.currentSlideIndex].thumbnailtimer !== null)
@@ -1361,6 +1431,7 @@ class SlideEditor {
     const isUnderline = this.editor.hasFormat('u');
     const isStrikethrough = this.editor.hasFormat('s') || this.editor.hasFormat('strike');
     const isCode = this.editor.hasFormat('code');
+    const isTh = this.editor.hasFormat('th');
 
     // Update button states
     const strongBtn = document.getElementById('format-strong');
@@ -1370,6 +1441,7 @@ class SlideEditor {
     const underlineBtn = document.getElementById('format-underline');
     const strikeBtn = document.getElementById('format-strikethrough');
     const codeBtn = document.getElementById('format-code');
+    const thBtn = document.getElementById('toggle-header-cell');
 
     if (strongBtn) strongBtn.classList.toggle('active', isStrong);
     if (emphasisBtn) emphasisBtn.classList.toggle('active', isEmphasis);
@@ -1378,6 +1450,7 @@ class SlideEditor {
     if (underlineBtn) underlineBtn.classList.toggle('active', isUnderline);
     if (strikeBtn) strikeBtn.classList.toggle('active', isStrikethrough);
     if (codeBtn) codeBtn.classList.toggle('active', isCode);
+    if (thBtn) thBtn.classList.toggle('active', isTh);
   }
 
   // Formatting methods
@@ -1542,6 +1615,302 @@ class SlideEditor {
     }
 
     this.updateElementPath();
+    this.editor.focus();
+  }
+
+  // Return the number of columns in a table
+  countColumns(table)
+  {
+    let columns = 0;
+    for (const rowgroup of table.children)
+      if (rowgroup.tagName === 'THEAD' || rowgroup.tagName === 'TBODY'
+	  || rowgroup.tagName === 'TFOOT') {
+	for (const row of rowgroup.children) {
+	  let n = 0;
+	  for (const cell of row.children) n += cell.colSpan;
+	  if (n > columns) columns = n;
+	}
+      }
+      return columns;
+  }
+
+  makeTable()
+  {
+    const selection = this.editor.getSelection();
+    const selectedText = this.editor.getSelectedText();
+    this.editor.insertHTML('<table><tr><td>' + (selectedText || '<br>')
+	+ '</td><td><br></tr><tr><td><br></td><td><br></tr></table>');
+  }
+
+  addHeaderRow()
+  {
+    const selection = this.editor.getSelection();
+    const cursor = selection.cloneRange();
+    cursor.collapse();		// The end of the selection
+
+    // Find the element to insert the row in or after.
+    let target = cursor.commonAncestorContainer;
+    if (target.nodeType !== 1) target = target.parentNode;
+    target = target.closest('thead > tr, table');
+    if (!target) return;	// We're not in a table
+
+    this.editor.saveUndoState();
+
+    // Make a new row with the right number of columns.
+    const newRow = table.ownerDocument.createElement('tr');
+    for (let i = this.countColumns(table); i > 0; i--)
+      newRow.append(table.ownerDocument.createElement('th'));
+
+    // Insert the row.
+    if (target.tagName === 'TR') {
+      // Selection was in a header row. Insert the new row after it.
+      target.after(newRow);
+    } else {			// 'TABLE'
+      // Selection was elsewhere in a table. Find or make a thead and
+      // insert the row at its end.
+      let thead = table.firstElementChild;
+      if (!thead || thead.tagName !== 'THEAD') {
+	thead = target.ownerDocument.createElement('thead');
+	target.prepend(thead);
+      }
+      thead.append(newRow);
+    }
+    this.editor.focus();
+  }
+
+  addRow()
+  {
+    const selection = this.editor.getSelection();
+    const cursor = selection.cloneRange();
+    cursor.collapse();		// The end of the selection
+
+    // Find an element to insert the new row in or after.
+    let target = cursor.commonAncestorContainer;
+    if (target.nodeType !== 1) target = target.parentNode;
+    target = target.closest('tbody > tr, table');
+    if (!target) return;	// We're not in a table
+    const table = target.closest('table');
+
+    this.editor.saveUndoState();
+
+    // Make a new row with the right number of columns.
+    const newRow = target.ownerDocument.createElement('tr');
+    for (let i = this.countColumns(table); i > 0; i--)
+      newRow.append(target.ownerDocument.createElement('td'));
+
+    if (target.tagName === 'TR') {
+      // Selection was in a body row. Insert the new row after it.
+      target.after(newRow);
+    } else {			// 'TABLE'
+      // Selection was in a table, but not in a tbody. Find or make a
+      // tbody and insert the new row at the end of it.
+      let tbody = target.querySelector('> tbody');
+      if (!tbody) {
+	tbody = target.ownerDocument.createElement('tbody');
+	target.apppend(tbody);
+      }
+      tbody.append(newRow);
+    }
+
+    this.editor.focus();
+  }
+
+  addColumn()
+  {
+    const selection = this.editor.getSelection();
+    const cursor = selection.cloneRange();
+    cursor.collapse();		// The end of the selection
+
+    let target = cursor.commonAncestorContainer;
+    if (target.nodeType !== 1) target = target.parentNode;
+    if (target.tagName !== 'TD' && target.tagName !== 'TH') return;
+
+    // Calculate the column index of the new column.
+    let col = 0;
+    for (let e = target; e; e = e.previousElementSibling)
+      col += e.colSpan;
+
+    this.editor.saveUndoState();
+
+    // Insert a new cell in each row of each rowgroup.
+    const table = target.closest('table');
+    for (const rowgroup of table.children)
+      if (rowgroup.tagName === 'THEAD' || rowgroup.tagName === 'TBODY'
+	  || rowgroup.tagName === 'TFOOT') {
+	for (const row of rowgroup.children) {
+
+	  // Create a new cell
+	  const newCell = target.ownerDocument.createElement(
+	    rowgroup.tagName === 'TBODY' ? 'td' : 'th');
+
+	  // Find the last cell before, or overlapping, the intended column.
+	  let c = row.firstElementChild;
+	  let i = 0
+	  while (i < col) {
+	    if (i + c.colSpan >= col || !c.nextElementSibling) {
+	      const rest = Math.max(i + c.colSpan - col, 0);
+	      newCell.colSpan = 1 + rest;
+	      c.colSpan = col - i;
+	      c.after(newCell);
+	    }
+	    i += c.colSpan;
+	    c = c.nextElementSibling;
+	  }
+	}
+      }
+
+    this.editor.focus();
+  }
+
+  deleteRows()
+  {
+    const selection = this.editor.getSelection();
+
+    // Find the row in which the selection starts.
+    const startSelection = selection.cloneRange();
+    startSelection.collapse(true);
+    let startRow = startSelection.commonAncestorContainer;
+    if (startRow.nodeType !== 1) startRow = startRow.parentNode;
+    startRow = startRow.closest('tr');
+    if (!startRow) return;		// Selection is not inside a table
+
+    // Find the row in which the selection ends.
+    const endSelection = selection.cloneRange();
+    endSelection.collapse(false);
+    let endRow = endSelection.commonAncestorContainer;
+    if (endRow.nodeType !== 1) endRow = endRow.parentNode;
+    endRow = endRow.closest('tr');
+    if (!endRow) return;		// Selection is not inside a table
+
+    // Check that the selection is all within a single table.
+    let startTable = startRow.closest('table');
+    let endTable = endRow.closest('table');
+    if (startTable !== endTable) return;
+
+    this.editor.saveUndoState();
+
+    // TODO: Adjust rowspan attributes.
+    const startIndex = startRow.rowIndex;
+    const endIndex = endRow.rowIndex;
+    for (let i = endIndex; i >= startIndex; i--) startTable.deleteRow(i);
+
+    // // Remove the rows between startRow and endRow, inclusive.
+    // let row, next = startRow;
+    // do {
+    //   row = next;
+    //   next = next.nextElementSibling;
+    //   if (!next) next = row.parentNode.nextElementSibling?.firstElementChild;
+    //   row.remove();
+    // } while (next && next.tagName === 'TR' && row !== endRow);
+
+    this.editor.focus();
+  }
+
+  deleteColumns()
+  {
+    const selection = this.editor.getSelection();
+
+    // Find the cell or row in which the selection starts.
+    const startSelection = selection.cloneRange();
+    startSelection.collapse(true);
+    let startColumn = startSelection.commonAncestorContainer;
+    if (startColumn.nodeType !== 1) startColumn = startColumn.parentNode;
+    startColumn = startColumn.closest('td, th');
+    if (!startColumn) return;		// Selection is not inside a table
+
+    // Find the cell or row in which the selection ends.
+    const endSelection = selection.cloneRange();
+    endSelection.collapse(false);
+    let endColumn = endSelection.commonAncestorContainer;
+    if (endColumn.nodeType !== 1) endColumn = endColumn.parentNode;
+    endColumn = endColumn.closest('td, th');
+    if (!endColumn) return;		// Selection is not inside a table
+
+    // Check that the selection is all within a single table.
+    let startTable = startColumn.closest('table');
+    let endTable = endColumn.closest('table');
+    if (startTable !== endTable) return;
+
+    // Calculate the column index of the start column.
+    let startIndex = 0;
+    for (let e = startColumn.previousSibling; e; e = e.previousSibling)
+      startIndex += e.colSpan;
+
+    // Calculate the index of the column after the end column.
+    let endIndex = 1;
+    for (let e = endColumn.previousSibling; e; e = e.previousSibling)
+      endIndex += e.colSpan;
+
+    // Loop over all rowgroups and all rows and delete the right cells.
+    for (const rowgroup of startTable.children)
+      if (rowgroup.tagName === 'THEAD' || rowgroup.tagName === 'TBODY'
+	  || rowgroup.tagName === 'TFOOT')
+	for (const row of rowgroup.children) {
+	  let c = row.firstElementChild;
+	  let i = 0;
+	  while (c) {
+	    let next = c.nextElementSibling;
+	    let j = i + c.colSpan;
+	    if (i < startIndex) {
+	      if (j >= endIndex) c.colSpan -= endIndex - startIndex;
+	      else if (j > startIndex) c.colSpan -= j - startIndex;
+	    } else if (i < endIndex) {
+	      if (j > endIndex) c.colSpan -= j - endIndex;
+	      else c.remove();
+	    }
+	    i = j;
+	    c = next;
+	  }
+	}
+
+    this.editor.focus();
+  }
+
+  toggleHeaderCell()
+  {
+    const selection = this.editor.getSelection();
+
+    // Find the cell in which the selection starts.
+    const startSelection = selection.cloneRange();
+    startSelection.collapse(true);
+    let start = startSelection.commonAncestorContainer;
+    if (start.nodeType !== 1) start = start.parentNode;
+    start = start.closest('td, th, tr, thead, tbody, tfoot, table');
+    if (!start) return;		// Selection is not inside a table
+    if (start.tagName !== 'TD' && start.tagName !== 'TH')
+      start = start.querySelector('td, th');
+
+    // Find the cell, row or rowgroup in which the selection ends.
+    const endSelection = selection.cloneRange();
+    endSelection.collapse(false);
+    let end = endSelection.commonAncestorContainer;
+    if (end.nodeType !== 1) end = end.parentNode;
+    end = end.closest('td, th, tr, thead, tbody, tfoot, table');
+    if (!end) return;		// Selection is not inside a table
+    if (end.tagName !== 'TD' && end.tagName !== 'TH') {
+      const h = end.querySelectorAll('td, th');
+      end = h[h.length - 1];
+    }
+
+    // Check that the selection is all within a single table.
+    let startTable = start.closest('table');
+    let endTable = end.closest('table');
+    if (startTable !== endTable) return;
+
+    // Toggle all cells between startCell and endCell, inclusive.
+    const walker = startTable.ownerDocument.createTreeWalker(startTable,
+      NodeFilter.SHOW_ELEMENT);
+    let c = walker.nextNode();
+    while (c && c !== start) c = walker.nextNode();
+    while (c) {
+      let next = walker.nextNode();
+      if (c.tagName === 'TD') this.renameElement(c, 'TH');
+      else if (c.tagName === 'TH') this.renameElement(c, 'TD');
+      if (c === end) break;
+      c = next;
+    }
+
+    this.updateFormatButtonStates();
     this.editor.focus();
   }
 
