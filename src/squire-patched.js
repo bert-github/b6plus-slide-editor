@@ -735,9 +735,6 @@
     "7": "48"
   };
   var stylesRewriters = {
-    STRONG: replaceWithTag("B"),
-    EM: replaceWithTag("I"),
-    INS: replaceWithTag("U"),
     STRIKE: replaceWithTag("S"),
     SPAN: replaceStyles,
     FONT: (node, parent, config) => {
