@@ -68,7 +68,7 @@
 
       <div class="toolbar-section">
         <select id="block-format" title="Block Format">
-	  <option value="">Block elements &amp containers</option>
+	  <option value="">Blocks &amp containers</option>
           <option value="p">Paragraph</option>
           <option value="h1">Heading 1</option>
           <option value="h2">Heading 2</option>
@@ -95,6 +95,17 @@
         <button id="format-ol" title="Numbered List" class="format-button">1. List</button>
 	<button id="increase-list-level" title="Push into sub-list" class="format-button">+ List</button>
 	<button id="decrease-list-level" title="Pull out of sub-list" class="format-button">− List</button>
+      </div>
+
+      <div class="toolbar-section">
+	<button id="make-table" title="Insert a table" class="format-button"><svg style="height: 1em; vertical-align: text-bottom" viewBox="0 0 128 128"><g fill="none" stroke="CurrentColor"><path d="m2 2h124v124h-124z" stroke-width="4"/><g stroke-width="4"><path d="m128 64h-128"/><path d="m64 0v128"/></g></g></svg>
+</button>
+	<button id="add-header-row" title="Add a table header row" class="format-button"><svg style="height: 1em; vertical-align: text-bottom" viewBox="0 0 128 128"><path d="m64 56v70" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m2 56h124v70h-124z" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m0 0v44h128v-44zm28 4h10v13h13v10h-13v13h-10v-13h-13v-10h13z" fill="CurrentColor"/><path d="m2 91h124" fill="none" stroke="CurrentColor" stroke-width="4"/></svg></button>
+	<button id="add-row" title="Add a table row" class="format-button"><svg style="height: 1em; vertical-align: text-bottom" viewBox="0 0 128 128"><path d="m64 2v124" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m2 2h124v124h-124z" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m0 42v44h128v-44zm28 4h10v13h13v10h-13v13h-10v-13h-13v-10h13z" fill="CurrentColor"/></svg></button>
+	<button id="add-column" title="Add a table column" class="format-button"><svg style="height: 1em; vertical-align: text-bottom" viewBox="0 0 128 128"><path d="m2 64h124" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m2 2h124v124h-124z" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m42 0v128h44v-128zm17 17h10v13h13v10h-13v13h-10v-13h-13v-10h13z" fill="CurrentColor"/></svg></button>
+	<button id="delete-rows" title="Delete table rows" class="format-button"><svg style="height: 1em; vertical-align: text-bottom" viewBox="0 0 128 128"><path d="m64 2v124" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m2 2h124v124h-124z" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m0 42v44h128v-44zm15 17h36v10h-36z" fill="CurrentColor"/></svg></button>
+	<button id="delete-columns" title="Delete table columns" class="format-button"><svg style="height: 1em; vertical-align: text-bottom" viewBox="0 0 128 128"><path d="m2 64h124" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m2 2h124v124h-124z" fill="none" stroke="CurrentColor" stroke-width="4"/><path d="m42 0v128h44v-128zm4 30h36v10h-36z" fill="CurrentColor"/></svg></button>
+	<button id="toggle-header-cell" title="Toggle between header and data cell" class="format-button">TH</button>
       </div>
 
       <div class="toolbar-section">
@@ -206,6 +217,6 @@
       </div>
     </div>
 
-    <script src="editor.js"></script>
+    <script src="editor.js" module></script>
   </body>
 </html>
