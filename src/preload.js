@@ -27,23 +27,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onFormatInline: (callback) => ipcRenderer.on('format-inline', callback),
   onFormatLink: (callback) => ipcRenderer.on('format-link', callback),
   onFormatRemoveFormat: (callback) => ipcRenderer.on('format-removeformat', callback),
-  onFormatBlock: (callback) => ipcRenderer.on('format-block', (event, data) => callback(data)),
+  onFormatBlock: (callback) => ipcRenderer.on('format-block', callback),
   onFormatUl: (callback) => ipcRenderer.on('format-ul', callback),
   onFormatOl: (callback) => ipcRenderer.on('format-ol', callback),
   onIncreaseListLevel: (callback) => ipcRenderer.on('increase-list-level', callback),
   onDecreaseListLevel: (callback) => ipcRenderer.on('decrease-list-level', callback),
   onEditClass: (callback) => ipcRenderer.on('edit-class', callback),
 
-  onCheckUnsavedChanges: (callback) => ipcRenderer.on('check-unsaved-changes', callback),
+  onMakeTable: (callback) => ipcRenderer.on('make-table', callback),
+  onAddHeaderRow: (callback) => ipcRenderer.on('add-header-row', callback),
+  onAddRow: (callback) => ipcRenderer.on('add-row', callback),
+  onAddColumn: (callback) => ipcRenderer.on('add-column', callback),
+  onDeleteRows: (callback) => ipcRenderer.on('delete-rows', callback),
+  onDeleteColumns: (callback) => ipcRenderer.on('delete-columns', callback),
+  onToggleHeaderCell: (callback) => ipcRenderer.on('toggle-header-cell', callback),
 
-  proceedWithClose: () => ipcRenderer.send('proceed-with-close'),
-  cancelClose: () => ipcRenderer.send('cancel-close'),
+  onCheckUnsavedChanges: (callback) => ipcRenderer.on('check-unsaved-changes', callback),
 
   onZoomIn: (callback) => ipcRenderer.on('zoom-in', callback),
   onZoomOut: (callback) => ipcRenderer.on('zoom-out', callback),
   onZoomReset: (callback) => ipcRenderer.on('zoom-reset', callback),
 
   onStyleHelp: (callback) => ipcRenderer.on('style-help', callback),
+
+  proceedWithClose: () => ipcRenderer.send('proceed-with-close'),
+  cancelClose: () => ipcRenderer.send('cancel-close'),
 
   saveFileDialog: (currentPath) => ipcRenderer.invoke('save-file-dialog', currentPath),
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
