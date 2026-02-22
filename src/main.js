@@ -3,366 +3,245 @@ const path = require('path');
 //const fs = require('fs').promises;
 const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
-
 let mainWindow;
 
 const defaultLayouts = [
-  {
-    label: 'Normal slide',
-    click: () => mainWindow.webContents.send('set-slide-layout', '')
-  },
-  {
-    label: 'Cover slide',
-    click: () => mainWindow.webContents.send('set-slide-layout', 'cover')
-  },
-  {
-    label: 'Final slide',
-    click: () => mainWindow.webContents.send('set-slide-layout', 'final')
-  }
+  { label: 'Normal slide',
+    click: () => mainWindow.webContents.send('set-slide-layout', '') },
+  { label: 'Cover slide',
+    click: () => mainWindow.webContents.send('set-slide-layout', 'cover') },
+  { label: 'Final slide',
+    click: () => mainWindow.webContents.send('set-slide-layout', 'final') }
 ];
 const defaultTransitions = [];
 const template = [
   // macOS application menu
-  ...(process.platform === 'darwin' ? [{
-    label: app.name,
+  ...(process.platform === 'darwin' ? [
+    { label: app.name,
+      submenu: [
+	{ role: 'about' },
+	{ type: 'separator' },
+	{ role: 'services' },
+	{ type: 'separator' },
+	{ role: 'hide' },
+	{ role: 'hideOthers' },
+	{ role: 'unhide' },
+	{ type: 'separator' },
+	{ label: 'Quit',
+          accelerator: 'CmdOrCtrl+Q',
+          click: () => app.quit() }
+      ] }] : []),
+  { label: 'File',
     submenu: [
-      { role: 'about' },
-      { type: 'separator' },
-      { role: 'services' },
-      { type: 'separator' },
-      { role: 'hide' },
-      { role: 'hideOthers' },
-      { role: 'unhide' },
-      { type: 'separator' },
-      {
-        label: 'Quit',
-        accelerator: 'CmdOrCtrl+Q',
-        click: () => app.quit()
-      }
-    ]
-  }] : []),
-  {
-    label: 'File',
-    submenu: [
-      {
-        label: 'New',
+      { label: 'New',
         accelerator: 'CmdOrCtrl+N',
-        click: () => mainWindow.webContents.send('new-file')
-      },
-      {
-        label: 'Open...',
+        click: () => mainWindow.webContents.send('new-file') },
+      { label: 'Open...',
         accelerator: 'CmdOrCtrl+O',
-        click: () => openFile()
-      },
-      {
-        label: 'Save',
+        click: () => openFile() },
+      { label: 'Save',
         accelerator: 'CmdOrCtrl+S',
-        click: () => mainWindow.webContents.send('save-file')
-      },
-      {
-        label: 'Save As...',
+        click: () => mainWindow.webContents.send('save-file') },
+      { label: 'Save As...',
         accelerator: 'CmdOrCtrl+Shift+S',
-        click: () => mainWindow.webContents.send('save-file-as')
-      },
+        click: () => mainWindow.webContents.send('save-file-as') },
       ...(process.platform !== 'darwin' ? [
         { type: 'separator' },
-        {
-          label: 'Quit',
+        { label: 'Quit',
           accelerator: 'CmdOrCtrl+Q',
-          click: () => app.quit()
-        }
+          click: () => app.quit() }
       ] : [])
-    ]
-  },
-  {
-    label: 'Edit',
+    ] },
+  { label: 'Edit',
     submenu: [
-      {
-        label: 'Undo',
+      { label: 'Undo',
         accelerator: 'CmdOrCtrl+Z',
-        click: () => mainWindow.webContents.send('undo')
-      },
-      {
-        label: 'Redo',
+        click: () => mainWindow.webContents.send('undo') },
+      { label: 'Redo',
         accelerator: 'CmdOrCtrl+Shift+Z',
-        click: () => mainWindow.webContents.send('redo')
-      },
+        click: () => mainWindow.webContents.send('redo') },
       { type: 'separator' },
       { role: 'cut' },
       { role: 'copy' },
       { role: 'paste' },
       { type: 'separator' },
-      {
-        label: 'Select All',
+      { label: 'Select All',
         accelerator: 'CmdOrCtrl+A',
-        click: () => mainWindow.webContents.send('select-all')
-      },
+        click: () => mainWindow.webContents.send('select-all') },
       { type: 'separator' },
-      {
-        label: 'Change Style Sheet...',
+      { label: 'Change Style Sheet...',
         accelerator: 'CmdOrCtrl+Shift+L',
-        click: () => mainWindow.webContents.send('change-stylesheet')
-      },
-      {
-        label: 'Custom CSS...',
-        click: () => mainWindow.webContents.send('edit-custom-css')
-      }
-    ]
-  },
-  {
-    label: 'Format',
+        click: () => mainWindow.webContents.send('change-stylesheet') },
+      { label: 'Custom CSS...',
+        click: () => mainWindow.webContents.send('edit-custom-css') }
+    ] },
+  { label: 'Inline',
     submenu: [
-      {
-        label: 'Strong',
+      { label: 'Strong',
         accelerator: 'CmdOrCtrl+B',
-        click: () => mainWindow.webContents.send('format-inline', 'strong')
-      },
-      {
-        label: 'Emphasis',
+        click: () => mainWindow.webContents.send('format-inline', 'strong') },
+      { label: 'Emphasis',
         accelerator: 'CmdOrCtrl+I',
-        click: () => mainWindow.webContents.send('format-inline', 'em')
-      },
-      {
-        label: 'Bold',
-        click: () => mainWindow.webContents.send('format-inline', 'b')
-      },
-      {
-        label: 'Italic',
-        click: () => mainWindow.webContents.send('format-inline', 'i')
-      },
-      {
-        label: 'Underline',
+        click: () => mainWindow.webContents.send('format-inline', 'em') },
+      { label: 'Bold',
+        click: () => mainWindow.webContents.send('format-inline', 'b') },
+      { label: 'Italic',
+        click: () => mainWindow.webContents.send('format-inline', 'i') },
+      { label: 'Underline',
         accelerator: 'CmdOrCtrl+U',
-        click: () => mainWindow.webContents.send('format-inline', 'u')
-      },
-      {
-        label: 'Strikethrough',
-        click: () => mainWindow.webContents.send('format-inline', 's')
-      },
-      {
-        label: 'Code',
-        click: () => mainWindow.webContents.send('format-inline', 'code')
-      },
+        click: () => mainWindow.webContents.send('format-inline', 'u') },
+      { label: 'Strikethrough',
+        click: () => mainWindow.webContents.send('format-inline', 's') },
+      { label: 'Code',
+        click: () => mainWindow.webContents.send('format-inline', 'code') },
       { type: 'separator' },
-      {
-        label: 'Insert Link...',
+      { label: 'Insert Link...',
         accelerator: 'CmdOrCtrl+K',
-        click: () => mainWindow.webContents.send('format-link')
-      },
-      {
-        label: 'Remove Formatting',
-        click: () => mainWindow.webContents.send('format-removeformat')
-      },
+        click: () => mainWindow.webContents.send('format-link') },
+      { label: 'Remove Formatting',
+        click: () => mainWindow.webContents.send('format-removeformat') },
       { type: 'separator' },
-      {
-	label: 'Block elements',
-	submenu: [
-	  {
-	    label: 'Paragraph',
-	    click: () => mainWindow.webContents.send('format-block', 'p')
-	  },
-	  {
-	    label: 'Heading 1',
-	    click: () => mainWindow.webContents.send('format-block', 'h1')
-	  },
-	  {
-	    label: 'Heading 2',
-	    click: () => mainWindow.webContents.send('format-block', 'h2')
-	  },
-	  {
-	    label: 'Heading 3',
-	    click: () => mainWindow.webContents.send('format-block', 'h3')
-	  },
-	  {
-	    label: 'Heading 4',
-	    click: () => mainWindow.webContents.send('format-block', 'h4')
-	  },
-	  {
-	    label: 'Heading 5',
-	    click: () => mainWindow.webContents.send('format-block', 'h5')
-	  },
-	  {
-	    label: 'Heading 6',
-	    click: () => mainWindow.webContents.send('format-block', 'h6')
-	  },
-	  {
-	    label: 'Address',
-	    click: () => mainWindow.webContents.send('format-block', 'address')
-	  },
-	  {
-	    label: 'Preformatted',
-	    click: () => mainWindow.webContents.send('format-block', 'pre')
-	  }
-	]
-      },
-      {
-	label: 'Block containers',
-	submenu: [
-	  {
-	    label: 'Blockquote',
-	    click: () => mainWindow.webContents.send('formatquote')
-	  },
-	  {
-	    label: 'Division',
-	    click: () => mainWindow.webContents.send('format-block', 'div')
-	  },
-	  {
-	    label: 'Details',
-	    click: () => mainWindow.webContents.send('format-block', 'details')
-	  },
-	  {
-	    label: 'Article',
-	    click: () => mainWindow.webContents.send('format-block', 'article')
-	  },
-	  {
-	    label: 'Section',
-	    click: () => mainWindow.webContents.send('format-block', 'section')
-	  },
-	  {
-	    label: 'Aside',
-	    click: () => mainWindow.webContents.send('format-block', 'aside')
-	  },
-	  { type: 'separator' },
-	  {
-	    label: 'Remove container',
-	    click: () => mainWindow.webContents.send('format-block', 'unwrap')
-	  }
-	]
-      },
-      {
-        label: 'Bulleted List',
-        click: () => mainWindow.webContents.send('format-ul')
-      },
-      {
-        label: 'Numbered List',
-        click: () => mainWindow.webContents.send('format-ol')
-      },
-      {
-	label: 'Push to sub-list',
-	click: () => mainWindow.webContents.send('increase-list-level')
-      },
-      {
-	label: 'Pull from sub-list',
-	click: () => mainWindow.webContents.send('decrease-list-level')
-      },
+      { label: 'Edit Class...',
+        click: () => mainWindow.webContents.send('edit-class') }
+    ] },
+  { label: 'Blocks',
+    submenu: [
+      { label: 'Paragraph',
+	click: () => mainWindow.webContents.send('format-block', 'p') },
+      { label: 'Heading 1',
+	click: () => mainWindow.webContents.send('format-block', 'h1') },
+      { label: 'Heading 2',
+	click: () => mainWindow.webContents.send('format-block', 'h2') },
+      { label: 'Heading 3',
+	click: () => mainWindow.webContents.send('format-block', 'h3') },
+      { label: 'Heading 4',
+	click: () => mainWindow.webContents.send('format-block', 'h4') },
+      { label: 'Heading 5',
+	click: () => mainWindow.webContents.send('format-block', 'h5') },
+      { label: 'Heading 6',
+	click: () => mainWindow.webContents.send('format-block', 'h6') },
+      { label: 'Address',
+	click: () => mainWindow.webContents.send('format-block', 'address') },
+      { label: 'Preformatted',
+	click: () => mainWindow.webContents.send('format-block', 'pre') },
       { type: 'separator' },
-      {
-        label: 'Edit Class...',
-        click: () => mainWindow.webContents.send('edit-class')
-      }
-    ]
-  },
-  {
-    id: 'slide',
+      { label: 'Blockquote',
+	click: () => mainWindow.webContents.send('formatquote') },
+      { label: 'Division',
+	click: () => mainWindow.webContents.send('format-block', 'div') },
+      { label: 'Details',
+	click: () => mainWindow.webContents.send('format-block', 'details') },
+      { label: 'Article',
+	click: () => mainWindow.webContents.send('format-block', 'article') },
+      { label: 'Section',
+	click: () => mainWindow.webContents.send('format-block', 'section') },
+      { label: 'Aside',
+	click: () => mainWindow.webContents.send('format-block', 'aside') },
+      { type: 'separator' },
+      { label: 'Remove Container',
+	click: () => mainWindow.webContents.send('format-block', 'unwrap') },
+      { type: 'separator' },
+      { label: 'Bulleted List',
+        click: () => mainWindow.webContents.send('format-ul') },
+      { label: 'Numbered List',
+        click: () => mainWindow.webContents.send('format-ol') },
+      { label: 'Push To Sub-list',
+	click: () => mainWindow.webContents.send('increase-list-level') },
+      { label: 'Pull From Sub-list',
+	click: () => mainWindow.webContents.send('decrease-list-level') },
+      { type: 'separator' },
+      { label: 'Edit Class...',
+        click: () => mainWindow.webContents.send('edit-class') }
+    ] },
+  { id: 'table',
+    label: 'Tables',
+    submenu: [
+      { label: 'Insert Table',
+	click: () => mainWindow.webContents.send('make-table') },
+      { label: 'Add Headings Row',
+	click: () => mainWindow.webContents.send('add-headings-row') },
+      { label: 'Add Row',
+	click: () => mainWindow.webContents.send('add-row') },
+      { label: 'Add Column',
+	click: () => mainWindow.webContents.send('add-column') },
+      { label: 'Delete Rows',
+	click: () => mainWindow.webContents.send('delete-rows') },
+      { label: 'Delete Columns',
+	click: () => mainWindow.webContents.send('delete-columns') },
+      { label: 'Toggle Heading/Data Cell',
+	click: () => mainWindow.webContents.send('toggle-heading-cell') }
+    ] },
+  { id: 'slide',
     label: 'Slide',
     submenu: [
-      {
-        label: 'Add Slide',
+      { label: 'Add Slide',
         accelerator: 'CmdOrCtrl+Shift+N',
-        click: () => mainWindow.webContents.send('add-slide')
-      },
-      {
-        label: 'Add Notes',
+        click: () => mainWindow.webContents.send('add-slide') },
+      { label: 'Add Notes',
         accelerator: 'CmdOrCtrl+Shift+M',
-        click: () => mainWindow.webContents.send('add-notes')
-      },
+        click: () => mainWindow.webContents.send('add-notes') },
       { type: 'separator' },
-      {
-        label: 'Delete Slide',
+      { label: 'Delete Slide',
         accelerator: 'CmdOrCtrl+Shift+Backspace',
-        click: () => mainWindow.webContents.send('delete-slide')
-      },
+        click: () => mainWindow.webContents.send('delete-slide') },
       { type: 'separator' },
-      {
-        label: 'Slide Layout',
+      { label: 'Slide Layout',
 	id: 'slide-layout',
-        submenu: defaultLayouts
-      },
-      {
-        label: 'Default Transition',
+        submenu: defaultLayouts },
+      { label: 'Default Transition',
 	id: 'default-transitions',
-        submenu: defaultTransitions
-      },
-      {
-        label: 'Slide Transition',
+        submenu: defaultTransitions },
+      { label: 'Slide Transition',
 	id: 'slide-transitions',
-        submenu: defaultTransitions
-      },
-      {
-	label: 'Omit decoration && slide number',
+        submenu: defaultTransitions },
+      { label: 'Omit decoration && slide number',
 	id: 'set-clear',
 	type: 'checkbox',
-	click: () => mainWindow.webContents.send('set-clear')
-      },
-      {
-	label: 'Shrink text to fit',
+	click: () => mainWindow.webContents.send('set-clear') },
+      { label: 'Shrink Text To Fit',
 	id: 'set-textfit',
 	type: 'checkbox',
-	click: () => mainWindow.webContents.send('set-textfit')
-      },
+	click: () => mainWindow.webContents.send('set-textfit') },
       { type: 'separator' },
-      {
-        label: 'Play',
+      { label: 'Play',
         accelerator: 'CmdOrCtrl+P',
-        click: () => mainWindow.webContents.send('play-slides')
-      }
-    ]
-  },
-  {
-    label: 'View',
+        click: () => mainWindow.webContents.send('play-slides') }
+    ] },
+  { label: 'View',
     submenu: [
-      {
-        label: 'Toggle HTML/WYSIWYG View',
+      { label: 'Toggle HTML/WYSIWYG View',
         accelerator: 'CmdOrCtrl+Shift+H',
-        click: () => mainWindow.webContents.send('toggle-view')
-      },
+        click: () => mainWindow.webContents.send('toggle-view') },
       { type: 'separator' },
-      {
-        label: 'Zoom In',
+      { label: 'Zoom In',
         accelerator: 'CmdOrCtrl+Plus',
-        click: () => mainWindow.webContents.send('zoom-in')
-      },
-      {
-        label: 'Zoom Out',
+        click: () => mainWindow.webContents.send('zoom-in') },
+      { label: 'Zoom Out',
         accelerator: 'CmdOrCtrl+-',
-        click: () => mainWindow.webContents.send('zoom-out')
-      },
-      {
-        label: 'Reset Zoom',
+        click: () => mainWindow.webContents.send('zoom-out') },
+      { label: 'Reset Zoom',
         accelerator: 'CmdOrCtrl+0',
-        click: () => mainWindow.webContents.send('zoom-reset')
-      },
+        click: () => mainWindow.webContents.send('zoom-reset') },
       { type: 'separator' },
-      {
-        label: 'Toggle DevTools',
+      { label: 'Toggle DevTools',
         accelerator: 'CmdOrCtrl+Shift+I',
-        click: () => mainWindow.webContents.toggleDevTools()
-      }
-    ]
-  },
-  {
-    label: 'Help',
+        click: () => mainWindow.webContents.toggleDevTools() }
+    ] },
+  { label: 'Help',
     role: 'help',
     submenu: [
-      {
-        label: 'Online Manual',
-        click: async () => {
-          const { shell } = require('electron');
-          await shell.openExternal('https://www.w3.org/Talks/Tools/b6plus-editor/manual.html');
-        }
+      { label: 'Online Manual',
+        click: async () => { const { shell } = require('electron');
+          await shell.openExternal('https://www.w3.org/Talks/Tools/b6plus-editor/manual.html'); }
 	// click: () => {
-	//   const win = new BrowserWindow({});
-	//   win.loadURL('https://www.w3.org/Talks/Tools/b6plus-editor/manual.html');
-	// }
+	//   const win = new BrowserWindow({ });
+	//   win.loadURL('https://www.w3.org/Talks/Tools/b6plus-editor/manual.html'); }
       },
-      {
-	label: 'Style Help',
+      { label: 'Style Help',
 	id: 'style-help',
 	enabled: false,
-	click: () => mainWindow.webContents.send('style-help')
-      }
-    ]
-  }
+	click: () => mainWindow.webContents.send('style-help') }
+    ] }
 ];
 
 async function openFileByPath(filePath) {
