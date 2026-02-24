@@ -58,9 +58,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
   selectCssFile: () => ipcRenderer.invoke('select-css-file'),
 
-  resolvePath: (basePath, relativePath) => ipcRenderer.invoke('resolve-path', basePath, relativePath),
+  resolvePath: (...paths) => ipcRenderer.invoke('resolve-path', ...paths),
   makeRelativePath: (fromPath, toPath) => ipcRenderer.invoke('make-relative-path', fromPath, toPath),
-  isAbsolutePath: (pathStr) => ipcRenderer.invoke('is-absolute-path', pathStr),
 
   getTempFilePath: () => ipcRenderer.invoke('get-temp-file-path'),
   writeTempFile: (content) => ipcRenderer.invoke('write-temp-file', content),
