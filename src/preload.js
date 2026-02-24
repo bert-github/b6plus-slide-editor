@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTempFilePath: () => ipcRenderer.invoke('get-temp-file-path'),
   writeTempFile: (content) => ipcRenderer.invoke('write-temp-file', content),
 
+  getRealPath: (path) => ipcRenderer.invoke('get-real-path', path),
+
   updateLayoutAndTransitionsMenus: (json) => ipcRenderer.invoke('update-layout-and-transitions-menus', json),
 
   openInBrowser: (filePath) => ipcRenderer.invoke('open-in-browser', filePath),
