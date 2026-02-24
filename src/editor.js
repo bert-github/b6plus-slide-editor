@@ -830,7 +830,8 @@ class SlideEditor {
   }
 
   // updateCurrentSlideContent -- copy content from editor into slides list
-  updateCurrentSlideContent() {
+  updateCurrentSlideContent()
+  {
     if (this.slides.length === 0) return;
 
     if (this.isHtmlView) {
@@ -848,7 +849,8 @@ class SlideEditor {
   }
 
   // toggleView -- switch between WYSIWYG and HTML editors
-  toggleView() {
+  toggleView()
+  {
     this.updateCurrentSlideContent();
 
     this.isHtmlView = !this.isHtmlView;
@@ -892,8 +894,7 @@ class SlideEditor {
   async browseStylesheet()
   {
     const filePath = await window.electronAPI.selectCssFile();
-    if (filePath)
-      document.getElementById('stylesheet-url').value = 'file://' + filePath;
+    if (filePath) document.getElementById('stylesheet-url').value = filePath;
   }
 
   // applyStylesheet -- handle the closing of the style sheet URL dialog
@@ -1200,7 +1201,7 @@ class SlideEditor {
 
     // Add CSS link, if we have a style sheet.
     if (this.cssUrl) {
-      if (cssPath.match(/^[a-z]+:/i) || !realdir)
+      if (cssUrl.match(/^[a-z]+:/i) || !realdir)
 	html += `    <link rel="stylesheet" href="${this.cssUrl}">\n`;
       else
 	html += '    <link rel="stylesheet" href="'
