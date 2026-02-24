@@ -281,8 +281,14 @@ function createWindow() {
   });
 
   // Open file from command line if provided
-  const fileToOpen = process.argv.find(arg => arg.endsWith('.html') && !arg.includes('index.html'));
+  let fileToOpen = process.argv.find(arg => arg.endsWith('.html') && !arg.includes('index.html'));
   if (fileToOpen) {
+    // Electron changes the working directory as if with "cd -P ." (or
+    // cd `realpath .`). So if there are symlinks in the path to the
+    // current directory, a relative path in the command line argument
+    // will be wrong. Hopefully, there is a PWD environment variable
+    // that holds the original working directory.
+    fileToOpen = path.resolve(process.env.PWD, fileToOpen);
     mainWindow.webContents.on('did-finish-load', () => {
       openFileByPath(fileToOpen);
     });
