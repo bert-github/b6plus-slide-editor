@@ -396,22 +396,15 @@ ipcMain.handle('select-css-file', async () => {
   return null;
 });
 
-ipcMain.handle('resolve-path', async (event, basePath, relativePath) => {
-  // Resolve a relative path based on a base path
-  return path.resolve(path.dirname(basePath), relativePath);
+ipcMain.handle('resolve-path', async (event, ...paths) => {
+  // Resolve a relative path to a normalized absolute path based on
+  // zero or more directories and the current working directory.
+  return path.resolve(...paths);
 });
 
 ipcMain.handle('make-relative-path', async (event, fromPath, toPath) => {
   // Make a path relative from one file to another
   return path.relative(path.dirname(fromPath), toPath);
-});
-
-ipcMain.handle('is-absolute-path', async (event, pathStr) => {
-  // Check if a path is absolute (works for URLs and file paths)
-  if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('file://')) {
-    return true;
-  }
-  return path.isAbsolute(pathStr);
 });
 
 ipcMain.handle('write-temp-file', async (event, content) => {
