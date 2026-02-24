@@ -713,7 +713,7 @@ class SlideEditor {
     tempDoc.open();
 
     // Build the slide HTML with styles
-    let html = '<html><head>';
+    let html = '<!DOCTYPE html><html><head>';
 
     // Add base tag if we have a file directory (same as editor)
     if (realdir) html += `<base href="${realdir}/">`;
