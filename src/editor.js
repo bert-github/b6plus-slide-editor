@@ -4,9 +4,14 @@ class SlideEditor {
   // block-format drop down and the Format menu.
   static blockElements = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'blockquote', 'pre', 'div', 'address', 'details', 'article', 'aside'];
+
+  // This list is used for prettyprinting:
   static allBlockElements = ['ol', 'ul', 'dl', 'dt', 'dd', 'li', 'hr',
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'hgroup',
     ...SlideEditor.blockElements];
+
+  // If a style sheet is loaded that does not have metadata in a JSON
+  // file, assume it provides these layouts and slide transitions:
   static defaultLayouts = [
     { "name": "Normal slide",
       "class": "" },
@@ -73,6 +78,7 @@ class SlideEditor {
           <script src="${basePath}/squire-patched.js"></script>
           <style>
             body {margin: 0; padding: 0}
+            /* Try to make tables a bit more visible while editing: */
             table:hover, table:hover td, table:hover th {
               outline: thin dashed orange}
           </style>
@@ -84,12 +90,14 @@ class SlideEditor {
     frameDoc.close();
   }
 
+  // escapeHTML -- escape delimiters (<>&") for HTML
   escapeHTML(text)
   {
     return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').
       replaceAll('>', '&gt;').replaceAll('"', '&quot;');
   }
 
+  // prettify -- convert an HTML DOM to text with block elements indented
   prettify(indent, ...nodes)
   {
     let text = '';
@@ -138,6 +146,7 @@ class SlideEditor {
     return text;
   }
 
+  // initializeSquire -- create an editor with the current slide
   async initializeSquire()
   {
     const frameDoc = this.editorFrame.contentDocument;
@@ -212,7 +221,7 @@ class SlideEditor {
     this.updateElementPath();
   }
 
-  // Construct the class attribute for a slide
+  // makeClassName -- construct the class attribute for a slide
   makeClassName(slide)
   {
     let classes = slide.type === 'slide' ? 'slide' : 'comment';
@@ -223,6 +232,7 @@ class SlideEditor {
     return classes;
   }
 
+  // updateElementPath -- show hierarchy of elements around cursor in status bar
   updateElementPath()
   {
     if (!this.editor) return;
@@ -306,6 +316,7 @@ class SlideEditor {
     }
   }
 
+  // selectElement -- handle a click on the status bar
   selectElement(element)
   {
     if (!this.editor) return;
@@ -322,6 +333,7 @@ class SlideEditor {
     this.updateElementPath();
   }
 
+  // expandSelection -- handle the Esc key
   expandSelection()
   {
     if (!this.editor) return;
@@ -363,6 +375,7 @@ class SlideEditor {
     }
   }
 
+  // setupEventListeners -- event listeners on buttons and menus
   setupEventListeners()
   {
     // Electron IPC listeners, menu commands
@@ -525,6 +538,7 @@ class SlideEditor {
     });
   }
 
+  // addInitialSlide -- make an initial slide for a new slide deck
   addInitialSlide()
   {
     this.addSlide();
@@ -533,6 +547,7 @@ class SlideEditor {
     this.hasUnsavedChanges = false;
   }
 
+  // addSlide -- add an empty slide after the current slide
   addSlide()
   {
     const slide = {
@@ -551,6 +566,7 @@ class SlideEditor {
     this.loadCurrentSlide();
   }
 
+  // addNotes -- add new, empty speaker notes after the current slide or notes
   addNotes()
   {
     const slideIndex = this.currentSlideIndex;
@@ -568,6 +584,7 @@ class SlideEditor {
     this.loadCurrentSlide();
   }
 
+  // deleteSlide -- remove the current slide
   deleteSlide()
   {
     if (this.slides.length === 0) return;
@@ -586,6 +603,7 @@ class SlideEditor {
     }
   }
 
+  // updateSlidesList -- renumber and regenerate thumbnails for all slides
   updateSlidesList()
   {
     const list = document.getElementById('slides-list');
@@ -646,6 +664,7 @@ class SlideEditor {
     this.generateThumbnails();
   }
 
+  // generateThumbnails -- generate the thumbnails for all slides in the list
   async generateThumbnails()
   {
     // Load html2canvas if not already loaded
@@ -667,12 +686,15 @@ class SlideEditor {
       await this.generateThumbnail(i);
   }
 
+  // generateThumbnail -- generate the thumbnail for one slide
   async generateThumbnail(slideIndex)
   {
     const slide = this.slides[slideIndex];
     const thumbnailContainer = document.getElementById(`thumbnail-${slideIndex}`);
-
     if (!thumbnailContainer) return;
+
+    const realdir = this.fileDirectory
+	  ? await window.electronAPI.getRealPath(this.fileDirectory) : null;
 
     // Calculate slide number
     let slideNumber = 0;
@@ -694,8 +716,8 @@ class SlideEditor {
     let html = '<html><head>';
 
     // Add base tag if we have a file directory (same as editor)
-    if (this.fileDirectory)
-      html += `<base href="file://${this.fileDirectory}/">`;
+    if (realdir)
+      html += `<base href="file://${realdir}/">`;
 
     html += '<style>';
     html += 'body { margin: 0; padding: 0; }';
@@ -706,12 +728,10 @@ class SlideEditor {
       let cssPath = this.cssUrl;
 
       // If it's a file:// URL, make it relative to the base directory
-      if (cssPath.startsWith('file://') && this.fileDirectory) {
+      if (cssPath.startsWith('file://') && realdir) {
         const cleanPath = cssPath.replace('file://', '');
         cssPath = await window.electronAPI.makeRelativePath(
-          this.fileDirectory + '/dummy.html',
-          cleanPath
-        );
+	  realdir + '/dummy.html', cleanPath);
       }
       html += `<link rel="stylesheet" href="${cssPath}">`;
     }
@@ -756,6 +776,7 @@ class SlideEditor {
     document.body.removeChild(tempFrame);
   }
 
+  // loadCurrentSlide -- start editing the current slide
   loadCurrentSlide()
   {
     if (this.slides.length === 0 || !this.slides[this.currentSlideIndex])
@@ -813,6 +834,7 @@ class SlideEditor {
     this.applyCssToFrame();
   }
 
+  // updateCurrentSlideContent -- copy content from editor into slides list
   updateCurrentSlideContent() {
     if (this.slides.length === 0) return;
 
@@ -830,6 +852,7 @@ class SlideEditor {
       this.generateThumbnail(i)}, 2000, this.currentSlideIndex);
   }
 
+  // toggleView -- switch between WYSIWYG and HTML editors
   toggleView() {
     this.updateCurrentSlideContent();
 
@@ -857,22 +880,30 @@ class SlideEditor {
     this.updateElementPath();
   }
 
-  openStylesheetDialog() {
+  // openStylesheetDialog -- show the dialog to enter a style sheet URL
+  openStylesheetDialog()
+  {
     document.getElementById('stylesheet-url').value = this.cssUrl || '';
     document.getElementById('stylesheet-dialog').style.display = 'flex';
   }
 
-  closeStylesheetDialog() {
+  // closeStylesheetDialog -- close the dialog to enter a style sheet URL
+  closeStylesheetDialog()
+  {
     document.getElementById('stylesheet-dialog').style.display = 'none';
   }
 
-  async browseStylesheet() {
+  // browseStylesheet -- get the result of a file selection dialog and store it
+  async browseStylesheet()
+  {
     const filePath = await window.electronAPI.selectCssFile();
     if (filePath)
       document.getElementById('stylesheet-url').value = 'file://' + filePath;
   }
 
-  async applyStylesheet() {
+  // applyStylesheet -- handle the closing of the style sheet URL dialog
+  async applyStylesheet()
+  {
     this.cssUrl = document.getElementById('stylesheet-url').value;
     this.applyCssToFrame();
     this.closeStylesheetDialog();
@@ -880,7 +911,7 @@ class SlideEditor {
     await this.updateLayoutsAndTransitions();
   }
 
-  // Update the slide layouts and slide transitions menus
+  // updateLayoutsAndTransitions - update slide layouts and transitions menus
   async updateLayoutsAndTransitions()
   {
     let json = {};
@@ -939,7 +970,9 @@ class SlideEditor {
     window.electronAPI.showHideClear(this.cssUrlInfo['supports-clear']);
   }
 
-  applyCssToFrame() {
+  // applyCssToFrame -- set current style URL and custom CSS in the editor frame
+  applyCssToFrame()
+  {
     if (!this.editorFrame || !this.editorFrame.contentDocument) return;
 
     const frameDoc = this.editorFrame.contentDocument;
@@ -969,22 +1002,30 @@ class SlideEditor {
     }
   }
 
-  openCustomCssModal() {
+  // openCustomCssModal -- handle the click to open the custom CSS dialog
+  openCustomCssModal()
+  {
     document.getElementById('custom-css-editor').value = this.customCss;
     document.getElementById('css-modal').style.display = 'flex';
   }
 
-  closeCustomCssModal() {
+  // closeCustomCssModal -- handle closing of the cusom CSS dialog
+  closeCustomCssModal()
+  {
     document.getElementById('css-modal').style.display = 'none';
   }
 
-  saveCustomCss() {
+  // saveCustomCss -- handle click on the save button of the custom CSS dialog
+  saveCustomCss()
+  {
     this.customCss = document.getElementById('custom-css-editor').value;
     this.applyCssToFrame();
     this.closeCustomCssModal();
   }
 
-  setSlideStyleClass(styleClass) {
+  // setSlideStyleClass -- handle click on slide layout button or menu
+  setSlideStyleClass(styleClass)
+  {
     if (this.slides.length === 0) return;
 
     const currentSlide = this.slides[this.currentSlideIndex];
@@ -1001,11 +1042,13 @@ class SlideEditor {
     }
   }
 
+  // setDefaultTransition -- handle click on default transitions menu
   setDefaultTransition(transition)
   {
     this.defaultTransition = transition;
   }
 
+  // setSlideTransition -- handle click on slide transitions menu
   setSlideTransition(transition)
   {
     if (this.slides.length === 0) return;
@@ -1014,7 +1057,7 @@ class SlideEditor {
     currentSlide.transition = transition;
   }
 
-  // "clear" was selected in the menu or the checkbox was clicked
+  // setClear -- "clear" was selected in the menu or the checkbox was clicked
   setClear(value)
   {
     if (this.slides.length === 0) return;
@@ -1042,7 +1085,7 @@ class SlideEditor {
     if (clearButton) clearButton.checked = currentSlide.slideClear;
   }
 
-  // "textfit" was selected in the menu or the checkbox was clicked
+  // setTextfit -- "textfit" was selected in the menu or checkbox was clicked
   setTextfit(value)
   {
     if (this.slides.length === 0) return;
@@ -1071,6 +1114,7 @@ class SlideEditor {
 
   }
 
+  // newFile -- handle click on "new file" menu item (or equivalent keypress)
   newFile() {
     if (this.hasUnsavedChanges && !confirm('Create a new file? Unsaved changes will be lost.')) {
       return;
@@ -1084,6 +1128,7 @@ class SlideEditor {
     this.addInitialSlide();
   }
 
+  // saveFile -- handle click on "save file" menu item
   async saveFile()
   {
     if (this.currentFilePath) await this.writeToFile(this.currentFilePath);
@@ -1101,7 +1146,8 @@ class SlideEditor {
     }
   }
 
-  async writeToFile(filePath) {
+  async writeToFile(filePath)
+  {
     this.updateCurrentSlideContent();
 
     const html = await this.generateHtml();
@@ -1115,7 +1161,8 @@ class SlideEditor {
     }
   }
 
-  async playSlides() {
+  async playSlides()
+  {
     // Save current content
     this.updateCurrentSlideContent();
 
@@ -1142,23 +1189,27 @@ class SlideEditor {
 
   async generateHtmlForPlay()
   {
+    const realdir = await this.fileDirectory
+	  ? await window.electronAPI.getRealPath(this.fileDirectory) : null;
+
     let html = '<!DOCTYPE html>\n<html lang="en">\n<head>\n';
     html += '    <meta charset="UTF-8">\n';
     html += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
     html += '    <title>Slide Deck</title>\n';
 
     // Add base tag if we have a current file directory
-    if (this.fileDirectory)
-      html += `    <base href="file://${this.fileDirectory}/">\n`;
+    if (realdir) {
+      html += `    <base href="file://realdir}/">\n`;
+    }
 
     // Add CSS link (now just the filename or relative path as-is)
     if (this.cssUrl) {
       let cssPath = this.cssUrl;
 
       // If it's not a URL, make it relative to the base
-      if (!cssPath.match(/^[a-z]+:/i) && this.fileDirectory)
+      if (!cssPath.match(/^[a-z]+:/i) && realdir)
 	cssPath = await window.electronAPI.makeRelativePath(
-	  this.fileDirectory + '/', cssPath);
+	  realpath + '/', cssPath);
 
       html += `    <link rel="stylesheet" href="${cssPath}">\n`;
     }
@@ -1189,7 +1240,8 @@ class SlideEditor {
     return html;
   }
 
-  async generateHtml(targetPath) {
+  async generateHtml(targetPath)
+  {
     // Use provided targetPath or fall back to currentFilePath
     const filePath = targetPath || this.currentFilePath;
 
@@ -1242,7 +1294,8 @@ class SlideEditor {
     return html;
   }
 
-  async openFile(data) {
+  async openFile(data)
+  {
     if (this.hasUnsavedChanges && !confirm('Open a file? Unsaved changes will be lost.')) {
       return;
     }
@@ -1255,7 +1308,9 @@ class SlideEditor {
     // Update base URL in iframe for relative paths
     if (this.editorFrame && this.editorFrame.contentDocument) {
       const baseTag = this.editorFrame.contentDocument.getElementById('base-url');
-      if (baseTag && directory) baseTag.href = 'file://' + directory + '/';
+      const realdir = directory
+	    ? await window.electronAPI.getRealPath(directory) : null;
+      if (baseTag && realdir) baseTag.href = 'file://' + realdir + '/';
     }
 
     await this.parseHtml(content, path);
@@ -1264,7 +1319,8 @@ class SlideEditor {
     this.loadCurrentSlide();
   }
 
-  async parseHtml(html, filePath) {
+  async parseHtml(html, filePath)
+  {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
@@ -1340,10 +1396,10 @@ class SlideEditor {
 
       // Find the slide's layout class, if any, and remove it from the classes.
       let layout = '';
-      for (const layout of this.cssUrlInfo.layouts)
-	for (const x of layout.class)
+      for (const h of this.cssUrlInfo.layouts)
+	for (const x of h.class)
 	  if (x && x.split(' ').every(c => section.classList.contains(c)))
-	    layout = layout.class[0]; // The first entry is the canonical one
+	    layout = h.class[0]; // The first entry is the canonical one
       if (layout)
 	for (const c of layout.split(' ')) section.classList.remove(c);
 
@@ -1363,22 +1419,26 @@ class SlideEditor {
     else this.currentSlideIndex = 0;
   }
 
-  zoomIn() {
+  zoomIn()
+  {
     this.zoomLevel = Math.min(this.zoomLevel + 0.1, 3.0);
     this.applyZoom();
   }
 
-  zoomOut() {
+  zoomOut()
+  {
     this.zoomLevel = Math.max(this.zoomLevel - 0.1, 0.3);
     this.applyZoom();
   }
 
-  zoomReset() {
+  zoomReset()
+  {
     this.zoomLevel = 1.0;
     this.applyZoom();
   }
 
-  applyZoom() {
+  applyZoom()
+  {
     if (this.editorFrame && this.editorFrame.contentDocument) {
       const body = this.editorFrame.contentDocument.body;
       if (body) body.style.zoom = this.zoomLevel;
@@ -1395,7 +1455,9 @@ class SlideEditor {
     if (this.editor && !this.isHtmlView) this.editor.redo();
   }
 
-  selectAll() {
+  // selectAll -- handle a click on the "select all" menu or key press
+  selectAll()
+  {
     if (!this.editor || this.isHtmlView) return;
 
     const frameDoc = this.editorFrame.contentDocument;
@@ -1410,7 +1472,7 @@ class SlideEditor {
     }
   }
 
-  // User selected the Style Help menu item
+  // styleHelp -- user selected the Style Help menu item
   async styleHelp()
   {
     if (this.cssUrlInfo.documentation) {
@@ -1420,7 +1482,9 @@ class SlideEditor {
     }
   }
 
-  updateFormatButtonStates() {
+  // updateFormatButtonStates -- update the active state of the format buttons
+  updateFormatButtonStates()
+  {
     if (!this.editor || this.isHtmlView) return;
 
     // Get current format state from Squire
@@ -1453,7 +1517,7 @@ class SlideEditor {
     if (thBtn) thBtn.classList.toggle('active', isTh);
   }
 
-  // Formatting methods
+  // formatInline -- handle click on a formatting button or menu item
   formatInline(format)
   {
     if (!this.editor || this.isHtmlView) return;
@@ -1464,8 +1528,9 @@ class SlideEditor {
     this.updateFormatButtonStates();
   }
 
-
-  formatLink() {
+  // formatlink -- handle a click on the Link button or menu
+  formatLink()
+  {
     if (!this.editor || this.isHtmlView) return;
 
     // Check if there's already a link and get its URL
@@ -1493,11 +1558,13 @@ class SlideEditor {
     document.getElementById('link-dialog').style.display = 'flex';
   }
 
-  closeLinkDialog() {
+  closeLinkDialog()
+  {
     document.getElementById('link-dialog').style.display = 'none';
   }
 
-  applyLink() {
+  applyLink()
+  {
     if (!this.editor || this.isHtmlView) {
       this.closeLinkDialog();
       return;
@@ -1513,7 +1580,8 @@ class SlideEditor {
     this.closeLinkDialog();
   }
 
-  removeLink() {
+  removeLink()
+  {
     if (!this.editor || this.isHtmlView) {
       this.closeLinkDialog();
       return;
@@ -1549,7 +1617,7 @@ class SlideEditor {
     if (this.editor && !this.isHtmlView) this.editor.decreaseListLevel();
   }
 
-  // Replace an element by one with same attributes & children, but a new name
+  // renameElement -- replace an element by one with same content but a new name
   renameElement(element, newName)
   {
     const newElement = element.ownerDocument.createElement(newName);
@@ -1560,7 +1628,9 @@ class SlideEditor {
     return newElement;
   }
 
-  setBlockFormat(format) {
+  // setBlockFormat -- handle a click on the block format menus
+  setBlockFormat(format)
+  {
     if (!this.editor || this.isHtmlView) return;
 
     if (format === 'unwrap') {
@@ -1618,7 +1688,7 @@ class SlideEditor {
     this.editor.focus();
   }
 
-  // Return the number of columns in a table
+  // countColumns -- return the number of columns of a table
   countColumns(table)
   {
     let columns = 0;
@@ -1634,6 +1704,7 @@ class SlideEditor {
       return columns;
   }
 
+  // addTable -- handle a click on the "add table" button or menu
   makeTable()
   {
     const selection = this.editor.getSelection();
@@ -1642,6 +1713,7 @@ class SlideEditor {
 	+ '</td><td><br></tr><tr><td><br></td><td><br></tr></table>');
   }
 
+  // addHeaderRow -- handle a click on the "add header row" button or menu
   addHeaderRow()
   {
     const selection = this.editor.getSelection();
@@ -1678,6 +1750,7 @@ class SlideEditor {
     this.editor.focus();
   }
 
+  // addRow -- handle a click on the "add row" button or menu
   addRow()
   {
     const selection = this.editor.getSelection();
@@ -1715,6 +1788,7 @@ class SlideEditor {
     this.editor.focus();
   }
 
+  // addColumn -- handle a click on the "add column" button or menu
   addColumn()
   {
     const selection = this.editor.getSelection();
@@ -1762,6 +1836,7 @@ class SlideEditor {
     this.editor.focus();
   }
 
+  // deleteRows -- handle a click on the "delete rows" button or menu
   deleteRows()
   {
     const selection = this.editor.getSelection();
@@ -1806,6 +1881,7 @@ class SlideEditor {
     this.editor.focus();
   }
 
+  // deleteColumns -- handle a click on the "delete columns" button or menu
   deleteColumns()
   {
     const selection = this.editor.getSelection();
@@ -1866,6 +1942,7 @@ class SlideEditor {
     this.editor.focus();
   }
 
+  // toggleHeaderCell -- handle click on toggle TH button
   toggleHeaderCell()
   {
     const selection = this.editor.getSelection();
@@ -1914,7 +1991,8 @@ class SlideEditor {
     this.editor.focus();
   }
 
-  openClassDialog() {
+  openClassDialog()
+  {
     if (!this.editor || this.isHtmlView) return;
 
     const frameDoc = this.editorFrame.contentDocument;
@@ -1933,11 +2011,13 @@ class SlideEditor {
     document.getElementById('class-dialog').style.display = 'flex';
   }
 
-  closeClassDialog() {
+  closeClassDialog()
+  {
     document.getElementById('class-dialog').style.display = 'none';
   }
 
-  applyClass() {
+  applyClass()
+  {
     if (!this.editor || this.isHtmlView) {
       this.closeClassDialog();
       return;
@@ -1964,7 +2044,9 @@ class SlideEditor {
     this.closeClassDialog();
   }
 
-  removeClass() {
+  // removeClass -- handle click on "remove class" button in the class dialog
+  removeClass()
+  {
     if (!this.editor || this.isHtmlView) {
       this.closeClassDialog();
       return;
@@ -1988,7 +2070,8 @@ class SlideEditor {
     this.updateCurrentSlideContent();
     this.closeClassDialog();
   }
-}
+} 				// end of class SlideEditor
+
 
 // Initialize the editor when DOM is ready
 let editorInstance;
