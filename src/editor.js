@@ -716,8 +716,7 @@ class SlideEditor {
     let html = '<html><head>';
 
     // Add base tag if we have a file directory (same as editor)
-    if (realdir)
-      html += `<base href="file://${realdir}/">`;
+    if (realdir) html += `<base href="${realdir}/">`;
 
     html += '<style>';
     html += 'body { margin: 0; padding: 0; }';
@@ -726,13 +725,9 @@ class SlideEditor {
     // Add external CSS if available
     if (this.cssUrl) {
       let cssPath = this.cssUrl;
-
-      // If it's a file:// URL, make it relative to the base directory
-      if (cssPath.startsWith('file://') && realdir) {
-        const cleanPath = cssPath.replace('file://', '');
-        cssPath = await window.electronAPI.makeRelativePath(
-	  realdir + '/dummy.html', cleanPath);
-      }
+      if (!cssPath.match(/[a-z]+:/i))
+	cssPath = await window.electronAPI.makeRelativePath(
+	  realdir + '/dummy', cssPath);
       html += `<link rel="stylesheet" href="${cssPath}">`;
     }
 
@@ -934,8 +929,11 @@ class SlideEditor {
 
     // Update the stored information about the current style.
     // Use defaults for values that are not provided.
-    this.cssUrlInfo.documentation = json.documentation
-      ? new URL(json.documentation, this.cssUrl).href : null;
+    if (!json.documentation || json.documentation.match(/^[a-z]+:/i))
+      this.cssUrlInfo.documentation = json.documentation;
+    else
+      this.cssUrlInfo.documentation = new URL(json.documentation,
+	(this.cssUrl.match(/^[a-z]+:/i) ? '' : 'file://') + this.cssUrl).href;
     this.cssUrlInfo["supports-clear"] = json['supports-clear'] ?? true;
     this.cssUrlInfo.layouts = json.layouts ?? SlideEditor.defaultLayouts;
     this.cssUrlInfo.transitions = json.transitions
@@ -1198,20 +1196,16 @@ class SlideEditor {
     html += '    <title>Slide Deck</title>\n';
 
     // Add base tag if we have a current file directory
-    if (realdir) {
-      html += `    <base href="file://realdir}/">\n`;
-    }
+    if (realdir) html += `    <base href="${realdir}/">\n`;
 
-    // Add CSS link (now just the filename or relative path as-is)
+    // Add CSS link, if we have a style sheet.
     if (this.cssUrl) {
-      let cssPath = this.cssUrl;
-
-      // If it's not a URL, make it relative to the base
-      if (!cssPath.match(/^[a-z]+:/i) && realdir)
-	cssPath = await window.electronAPI.makeRelativePath(
-	  realpath + '/', cssPath);
-
-      html += `    <link rel="stylesheet" href="${cssPath}">\n`;
+      if (cssPath.match(/^[a-z]+:/i) || !realdir)
+	html += `    <link rel="stylesheet" href="${this.cssUrl}">\n`;
+      else
+	html += '    <link rel="stylesheet" href="'
+	+ await window.electronAPI.makeRelativePath(realdir + '/.', this.cssUrl)
+	+ '">\n';
     }
 
     if (this.customCss) {
@@ -1251,20 +1245,12 @@ class SlideEditor {
     html += '    <title>Slide Deck</title>\n';
 
     if (this.cssUrl) {
-      // Convert CSS URL to be relative to the save location if it's a local absolute path
+      // Convert CSS URL to be relative to the save location if it's a
+      // local path
       let cssUrlToWrite = this.cssUrl;
-
-      if (filePath) {
-        const isAbsolute = await window.electronAPI.isAbsolutePath(this.cssUrl);
-
-        // If it's a local absolute path (not a URL), make it relative
-        if (isAbsolute && !this.cssUrl.startsWith('http://') && !this.cssUrl.startsWith('https://')) {
-          // Remove file:// prefix if present
-          let cleanCssPath = this.cssUrl.replace('file://', '');
-          cssUrlToWrite = await window.electronAPI.makeRelativePath(filePath, cleanCssPath);
-        }
-      }
-
+      if (!cssUrlToWrite.match(/^[a-z]+:/i) && filePath)
+	cssUrlToWrite = await window.electronAPI.makeRelativePath(
+	  filePath, cssUrlToWrite);
       html += `    <link rel="stylesheet" href="${cssUrlToWrite}">\n`;
     }
 
@@ -1310,45 +1296,34 @@ class SlideEditor {
       const baseTag = this.editorFrame.contentDocument.getElementById('base-url');
       const realdir = directory
 	    ? await window.electronAPI.getRealPath(directory) : null;
-      if (baseTag && realdir) baseTag.href = 'file://' + realdir + '/';
+      if (baseTag && realdir) baseTag.href = realdir + '/';
     }
 
-    await this.parseHtml(content, path);
+    await this.parseHtml(content, directory, path);
     this.hasUnsavedChanges = false;
     this.updateSlidesList();
     this.loadCurrentSlide();
   }
 
-  async parseHtml(html, filePath)
+  async parseHtml(html, fileDirectory, filePath)
   {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
     // Extract CSS URL
     const linkElement = doc.querySelector('link[rel="stylesheet"]');
-    if (linkElement) {
-      let cssHref = linkElement.getAttribute('href');
+    const cssHref = linkElement?.getAttribute('href');
 
-      // If it's a relative path, resolve it to absolute
-      if (cssHref && filePath) {
-        const isAbsolute = await window.electronAPI.isAbsolutePath(cssHref);
+    if (!cssHref)
+      this.cssUrl = '';
+    else if (cssHref.match(/^[a-z]+:/i))
+      this.cssUrl = cssHref;
+    else if (!fileDirectory)
+      this.cssUrl = await window.electronAPI.resolvePath(cssHref);
+    else
+      this.cssUrl = await window.electronAPI.resolvePath(fileDirectory,cssHref);
 
-        if (!isAbsolute) {
-          // Resolve relative path to absolute path
-          const absolutePath = await window.electronAPI.resolvePath(filePath, cssHref);
-          // Convert to file:// URL for use in the editor
-          this.cssUrl = 'file://' + absolutePath;
-        } else {
-          this.cssUrl = cssHref;
-        }
-      } else {
-        this.cssUrl = cssHref || '';
-      }
-      this.updateLayoutsAndTransitions();
-
-      // Don't need to update the input here since it's in a dialog
-      // The dialog will be populated when opened
-    }
+    this.updateLayoutsAndTransitions();
 
     // Extract custom CSS
     const styleElement = doc.querySelector('style');
