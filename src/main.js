@@ -437,6 +437,10 @@ ipcMain.handle('get-temp-file-path', async () => {
   return tempFilePath;
 });
 
+ipcMain.handle('get-real-path', async (event, path) => {
+  return fs.realpathSync(path);
+});
+
 ipcMain.handle('open-in-browser', async (event, url) => {
   // Open url in default browser
   const { shell } = require('electron');
