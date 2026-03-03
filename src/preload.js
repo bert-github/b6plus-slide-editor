@@ -27,12 +27,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onFormatInline: (callback) => ipcRenderer.on('format-inline', callback),
   onFormatLink: (callback) => ipcRenderer.on('format-link', callback),
   onFormatRemoveFormat: (callback) => ipcRenderer.on('format-removeformat', callback),
+  onAddImage: (callback) => ipcRenderer.on('add-image', callback),
+  onEditClass: (callback) => ipcRenderer.on('edit-class', callback),
+
   onFormatBlock: (callback) => ipcRenderer.on('format-block', callback),
   onFormatUl: (callback) => ipcRenderer.on('format-ul', callback),
   onFormatOl: (callback) => ipcRenderer.on('format-ol', callback),
   onIncreaseListLevel: (callback) => ipcRenderer.on('increase-list-level', callback),
   onDecreaseListLevel: (callback) => ipcRenderer.on('decrease-list-level', callback),
-  onEditClass: (callback) => ipcRenderer.on('edit-class', callback),
 
   onMakeTable: (callback) => ipcRenderer.on('make-table', callback),
   onAddHeaderRow: (callback) => ipcRenderer.on('add-header-row', callback),
@@ -57,6 +59,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
   selectCssFile: () => ipcRenderer.invoke('select-css-file'),
+  selectImageFile: () => ipcRenderer.invoke('select-image-file'),
 
   resolvePath: (...paths) => ipcRenderer.invoke('resolve-path', ...paths),
   makeRelativePath: (fromPath, toPath) => ipcRenderer.invoke('make-relative-path', fromPath, toPath),
