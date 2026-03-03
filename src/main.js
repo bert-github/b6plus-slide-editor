@@ -101,6 +101,9 @@ const template = [
       { label: 'Remove Formatting',
         click: () => mainWindow.webContents.send('format-removeformat') },
       { type: 'separator' },
+      { label: 'Add Image...',
+	click: () => mainWindow.webContents.send('add-image') },
+      { type: 'separator' },
       { label: 'Edit Class...',
         click: () => mainWindow.webContents.send('edit-class') }
     ] },
@@ -373,11 +376,17 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
 
 ipcMain.handle('read-file', async (event, filePath) => {
   if (filePath.match(/^[a-z]+:/i) && !filePath.match(/^file:/i)) {
-    // TODO: fetch
-    dialog.showErrorBox('Error', `Fetching of a remote file (${filePath}) is not implemented yet`);
-  } else {
-    filePath = filePath.replace(/^file:\/\//i, '');
     try {
+      const url = filePath.match(/^[a-z]+:/i) ? filePath : 'file://' + filePath;
+      const response = await fetch(url, {mode: "no-cors"})
+      const content = await response.text();
+      return {content: content, success: true, error: null};
+    } catch (err) {
+      return {content: null, success: false, error: err.message};
+    }
+  } else {
+    try {
+      const path = filePath.replace(/^file:\/\//i, '');
       const content = fs.readFileSync(filePath, 'utf-8');
       return {content: content, success: true, error: null};
     } catch (err) {
@@ -395,6 +404,21 @@ ipcMain.handle('select-css-file', async () => {
       { name: 'All Files', extensions: ['*'] }
     ]
   });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.handle('select-image-file', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [
+      { name: 'Image Files',
+	extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'] },
+      { name: 'All Files',
+	extensions: ['*'] } ] });
 
   if (!result.canceled && result.filePaths.length > 0) {
     return result.filePaths[0];
