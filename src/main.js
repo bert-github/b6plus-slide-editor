@@ -299,7 +299,7 @@ function createWindow() {
 
   app.setAboutPanelOptions({
     applicationName: "B6+ slide editor", // string (optional) - The app's name.
-    applicationVersion: "0.1.0", // string (optional) - The app's version.
+    applicationVersion: "0.1.1", // string (optional) - The app's version.
     copyright: "© 2026 W3C", // string (optional) - Copyright information.
     version: "0.1", // string (optional) macOS - The app's build version number.
     // credits: "", // string (optional) macOS Windows - Credit information.

@@ -1,6 +1,6 @@
 {
   "name": "b6plus-slide-editor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "WYSIWYG editor for HTML slide decks",
   "homepage": "https://www.w3.org/Talks/Tools/b6plus-editor/",
   "main": "src/main.js",
