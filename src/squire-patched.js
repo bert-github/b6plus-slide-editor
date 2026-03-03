@@ -115,8 +115,8 @@
   var notWS = /[^ \t\r\n\u200B]/;
 
   // source/node/Category.ts
-  var inlineNodeNames = /^(?:#text|A(?:BBR|CRONYM)?|B(?:R|D[IO])?|C(?:ITE|ODE)|D(?:ATA|EL|FN)|EM|FONT|HR|I(?:FRAME|MG|NPUT|NS)?|KBD|Q|R(?:P|T|UBY)|S(?:AMP|MALL|PAN|TR(?:IKE|ONG)|U[BP])?|TIME|U|VAR|WBR)$/;
-  var leafNodeNames = /* @__PURE__ */ new Set(["BR", "HR", "IFRAME", "IMG", "INPUT"]);
+  var inlineNodeNames = /^(?:#text|A(?:BBR|CRONYM)?|B(?:R|D[IO])?|C(?:ITE|ODE)|D(?:ATA|EL|FN)|EM|FONT|HR|I(?:FRAME|MG|NPUT|NS)?|KBD|Q|R(?:P|T|UBY)|S(?:AMP|MALL|PAN|TR(?:IKE|ONG)|U[BP]|VG)?|TIME|U(?:SE)?|VAR|WBR|svg|use)$/;
+  var leafNodeNames = /* @__PURE__ */ new Set(["BR", "HR", "IFRAME", "IMG", "INPUT", "SVG"]);
   var UNKNOWN = 0;
   var INLINE = 1;
   var BLOCK = 2;
@@ -2152,6 +2152,10 @@
       if (target.nodeName === "IMG" && this._root.contains(target)) {
         event.stopPropagation();
         this._selectImage(target);
+        const range = this._root.ownerDocument.createRange();
+        range.selectNodeContents(target);
+        this._editor.setSelection(range);
+        this._editor._updatePath(range, true);
       } else if (this._currentImage && this._handles && !this._handles.some((handle) => handle.element === target)) {
         this._deselectImage();
       }
@@ -2185,7 +2189,6 @@
         return;
       }
       this._deselectImage();
-      this._root.blur();
       const handles = handlePositions.map(({ pos, cursor }) => {
         const offset = RESIZE_HANDLE_SIZE / 2;
         let positionStyle = "";
@@ -3123,9 +3126,12 @@
       this._ignoreChange = true;
       return this;
     }
-    getHTML(withBookmark) {
+    getHTML(withBookmark, toText) {
       let range;
       let html = "";
+      if (!toText) toText = (e) => {
+        return e.innerHTML;
+      };
       this.modifyDocument(() => {
         if (withBookmark) {
           range = this.getSelection();
@@ -3137,7 +3143,7 @@
         if (resizeContainer) {
           resizeContainer.remove();
         }
-        html = this._getRawHTML().replace(/\u200B/g, "");
+        html = toText(this._root).replace(/\u200B/g, "");
         if (resizeContainer) {
           this._root.appendChild(resizeContainer);
         }
