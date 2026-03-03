@@ -54,10 +54,12 @@
       <div class="toolbar-section">
         <button id="format-strong" title="Strong (Cmd/Ctrl+B)" class="format-button"><strong>strong</strong></button>
         <button id="format-emphasis" title="Emphasis (Cmd/Ctrl+I)" class="format-button"><em>em</em></button>
+	<!--
         <button id="format-bold" title="Bold" class="format-button"><b>B</b></button>
         <button id="format-italic" title="Italic" class="format-button"><i>I</i></button>
         <button id="format-underline" title="Underline (Cmd/Ctrl+U)" class="format-button"><u>U</u></button>
         <button id="format-strikethrough" title="Strikethrough" class="format-button"><s>S</s></button>
+	-->
         <button id="format-code" title="Code" class="format-button"><code>code</code></button>
       </div>
 
@@ -88,6 +90,10 @@
 	  <hr>
 	  <option value="unwrap">Remove container</option>
 	</select>
+      </div>
+
+      <div class="toolbar-section">
+	<button id="insert-image" title="Insert an image">🖼️</button>
       </div>
 
       <div class="toolbar-section">
@@ -217,6 +223,27 @@
       </div>
     </div>
 
-    <script src="editor.js" module></script>
+    <!-- Image Dialog -->
+    <div id="image-dialog" class="modal" style="display: none;">
+      <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+          <h3>Insert Image</h3>
+          <button id="close-image-dialog" class="close-button">✕</button>
+        </div>
+        <div style="padding: 20px;">
+          <label for="image-url" style="display: block; margin-bottom: 8px; font-weight: bold;">Image URL or file path:</label>
+          <input type="text" id="image-url" placeholder="https://example.com/image.jpg or /path/to/image.jpg" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+          <button id="browse-image" title="Browse for local image file" style="padding: 8px 16px;">📁 Browse...</button>
+          <label for="alt-text" style="display: block; margin-bottom: 8px; font-weight: bold;">Text alternative (‘alt text’):</label>
+          <input type="text" id="alt-text" placeholder="" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+        </div>
+        <div class="modal-footer">
+          <button id="apply-image">Apply</button>
+          <button id="cancel-image">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="editor.js"></script>
   </body>
 </html>
