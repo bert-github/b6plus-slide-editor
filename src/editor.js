@@ -67,12 +67,11 @@ class SlideEditor {
       window.location.href.lastIndexOf('/'));
 
     // Initialize iframe with basic structure
-    const frameDoc = this.editorFrame.contentDocument;
-    frameDoc.open();
-    frameDoc.write(`<!DOCTYPE html>
+    this.editorFrame.srcdoc = `<!DOCTYPE html>
       <html>
         <head>
-          <meta charset="UTF-8">
+          <meta charset=UTF-8>
+          <meta name=viewport content="width=device-width">
           <base href="${basePath}/" id="base-url">
           <script src="${basePath}/dompurify.js"></script>
           <script src="${basePath}/squire-patched.js"></script>
@@ -86,8 +85,7 @@ class SlideEditor {
         <body class="b6plus">
           <section id="slide-wrapper"></section>
         </body>
-      </html>`);
-    frameDoc.close();
+      </html>`;
   }
 
   // escapeHTML -- escape delimiters (<>&") for HTML
@@ -146,6 +144,9 @@ class SlideEditor {
     return text;
   }
 
+  // prettifyContents -- return prettyprinted version of node.innerHTML
+  prettifyContents = node => {return this.prettify('', ...node.childNodes)};
+
   // initializeSquire -- create an editor with the current slide
   async initializeSquire()
   {
@@ -170,7 +171,20 @@ class SlideEditor {
     this.editor = new Squire(editorElement, {
       blockTag: 'P',
       blockAttributes: null,
-      tagAttributes: {}
+      tagAttributes: {},
+      // sanitizeToDOMFragment: (html, editor) => {
+      //   const frag = frameDoc.defaultView.DOMPurify.sanitize(html, {
+      //     ALLOW_UNKNOWN_PROTOCOLS: true,
+      //     WHOLE_DOCUMENT: false,
+      //     RETURN_DOM: true,
+      //     RETURN_DOM_FRAGMENT: true,
+      //     FORCE_BODY: false,
+      // 	  ADD_TAGS: ['use'],
+      //   });
+      //   return frag
+      //     ? document.importNode(frag, true)
+      //     : document.createDocumentFragment();
+      // }
     });
 
     // Set initial content
@@ -217,6 +231,11 @@ class SlideEditor {
       }
     });
 
+    // Add a handler for when an image is copy-pasted
+    this.editor.addEventListener('pasteImage', event => {
+      // this.insertImages(event.detail.clipboardData);
+    });
+
     // Initial path update
     this.updateElementPath();
   }
@@ -239,7 +258,7 @@ class SlideEditor {
 
     const frameDoc = this.editorFrame.contentDocument;
     const editorElement = frameDoc.getElementById('slide-wrapper');
-    const selection = this.editor.getSelection();
+    const selection = frameDoc.getSelection();
 
     const pathContainer = document.getElementById('element-path');
 
@@ -247,11 +266,11 @@ class SlideEditor {
 
       pathContainer.innerHTML = '';
 
-      if (!this.isHtmlView) {
+      if (!this.isHtmlView && selection.focusNode) {
 
 	// Build path
 
-	let node = selection.startContainer;
+	let node = selection.focusNode;
 
 	// If it's a text node, get the parent element
 	if (node.nodeType === 3) node = node.parentNode;
@@ -300,10 +319,10 @@ class SlideEditor {
 
     if (blockMenu) {
 
-      if (this.isHtmlView) {
+      if (this.isHtmlView || !selection.focusNode) {
 	blockMenu.value = '';
       } else {
-	let node = selection.commonAncestorContainer;
+	let node = selection.focusNode;
 	if (node.nodeType === 3) node = node.parentNode;
 	let block = '';
 	while (!block && node && node !== frameDoc && node !== editorElement) {
@@ -406,6 +425,7 @@ class SlideEditor {
     window.electronAPI.onFormatLink(() => this.formatLink());
     window.electronAPI.onFormatRemoveFormat(() => this.formatRemoveFormat());
     window.electronAPI.onFormatBlock((data) => this.setBlockFormat(data)),
+    window.electronAPI.onAddImage(() => this.openImageDialog());
     window.electronAPI.onFormatUl(() => this.formatUl());
     window.electronAPI.onFormatOl(() => this.formatOl());
     window.electronAPI.onEditClass(() => this.openClassDialog());
@@ -438,20 +458,22 @@ class SlideEditor {
       () => this.formatInline('strong'));
     document.getElementById('format-emphasis').addEventListener('click',
       () => this.formatInline('em'));
-    document.getElementById('format-bold').addEventListener('click',
-      () => this.formatInline('b'));
-    document.getElementById('format-italic').addEventListener('click',
-      () => this.formatInline('i'));
-    document.getElementById('format-underline').addEventListener('click',
-      () => this.formatInline('u'));
-    document.getElementById('format-strikethrough').addEventListener('click',
-      () => this.formatInline('s'));
+    // document.getElementById('format-bold').addEventListener('click',
+    //   () => this.formatInline('b'));
+    // document.getElementById('format-italic').addEventListener('click',
+    //   () => this.formatInline('i'));
+    // document.getElementById('format-underline').addEventListener('click',
+    //   () => this.formatInline('u'));
+    // document.getElementById('format-strikethrough').addEventListener('click',
+    //   () => this.formatInline('s'));
     document.getElementById('format-code').addEventListener('click',
       () => this.formatInline('code'));
     document.getElementById('format-link').addEventListener('click',
       () => this.formatLink());
     document.getElementById('format-removeformat').addEventListener('click',
       () => this.formatRemoveFormat());
+    document.getElementById('insert-image').addEventListener('click',
+      () => this.openImageDialog());
     document.getElementById('format-ul').addEventListener('click',
       () => this.formatUl());
     document.getElementById('format-ol').addEventListener('click',
@@ -484,6 +506,12 @@ class SlideEditor {
     document.getElementById('cancel-stylesheet').addEventListener('click', () => this.closeStylesheetDialog());
     document.getElementById('close-stylesheet-dialog').addEventListener('click', () => this.closeStylesheetDialog());
     document.getElementById('browse-stylesheet').addEventListener('click', () => this.browseStylesheet());
+
+    // Image dialog
+    document.getElementById('apply-image').addEventListener('click', () => this.applyImage());
+    document.getElementById('cancel-image').addEventListener('click', () => this.closeImageDialog());
+    document.getElementById('close-image-dialog').addEventListener('click', () => this.closeImageDialog());
+    document.getElementById('browse-image').addEventListener('click', () => this.browseImage());
 
     // Class dialog
     document.getElementById('apply-class').addEventListener('click', () => this.applyClass());
@@ -606,6 +634,10 @@ class SlideEditor {
   // updateSlidesList -- renumber and regenerate thumbnails for all slides
   updateSlidesList()
   {
+    // If there is an update waiting, cancel it.
+    if (this.slides[this.currentSlideIndex].thumbnailtimer !== null)
+      clearTimeout(this.slides[this.currentSlideIndex].thumbnailtimer);
+
     const list = document.getElementById('slides-list');
     list.innerHTML = '';
 
@@ -647,7 +679,8 @@ class SlideEditor {
 
         if (previousIndex !== index) {
           // Remove active from previous item
-          const previousItem = document.getElementById(`slide-item-${previousIndex}`);
+          const previousItem = document.getElementById(
+	    `slide-item-${previousIndex}`);
           if (previousItem) previousItem.classList.remove('active');
 
           // Add active to new item
@@ -691,7 +724,7 @@ class SlideEditor {
   {
     const slide = this.slides[slideIndex];
     const thumbnailContainer = document.getElementById(`thumbnail-${slideIndex}`);
-    if (!thumbnailContainer) return;
+    if (!thumbnailContainer) return; // Speaker notes don't have thumbnails
 
     const realdir = this.fileDirectory
 	  ? await window.electronAPI.getRealPath(this.fileDirectory) : null;
@@ -709,14 +742,13 @@ class SlideEditor {
     // tempFrame.style.height = '368px';
     document.body.appendChild(tempFrame);
 
-    const tempDoc = tempFrame.contentDocument;
-    tempDoc.open();
-
     // Build the slide HTML with styles
-    let html = '<!DOCTYPE html><html><head>';
+    const lang = this.lang ? ` lang="${this.escapeHTML(this.lang)}"` : '';
+    let html = `<!DOCTYPE html><html${lang}><head><meta charset=UTF-8>`
+	+ '<meta name=viewport content="width=device-width">';
 
     // Add base tag if we have a file directory (same as editor)
-    if (realdir) html += `<base href="${realdir}/">`;
+    if (realdir) html += `<base href="file://${realdir}/">`;
 
     html += '<style>';
     html += 'body { margin: 0; padding: 0; }';
@@ -732,25 +764,31 @@ class SlideEditor {
     }
 
     // Add custom CSS
+    // TODO: Escape any occurrence of "</style>"
     if (this.customCss) html += '<style>' + this.customCss + '</style>';
 
     html += '</head><body class="b6plus">';
 
     const classes = this.makeClassName(slide);
     const id = slide.id ? ` id="${slide.id}"` : '';
+    const sLang = slide.lang ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
 
-    html += `<section${id} class="${classes}" style="counter-reset: slide ${slideNumber - 1}">${slide.content}</section>`;
+    html += `<section${id}${sLang} class="${classes}"`;
+    html += ` style="counter-reset: slide ${slideNumber - 1}">`;
+    html += `${slide.content}</section>`;
     html += '</body></html>';
 
-    tempDoc.write(html);
-    tempDoc.close();
+    tempFrame.srcdoc = html;
 
     // Wait for styles and images to load
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // await new Promise(resolve => setTimeout(resolve, 100));
+    do { await new Promise(resolve => setTimeout(resolve, 50));
+    } while (tempFrame.contentDocument.readyState !== 'complete')
 
+    const slideElement = tempFrame.contentDocument.body.firstElementChild;
     try {
       // Render to canvas - use the section element directly
-      const canvas = await window.html2canvas(tempDoc.body.firstElementChild, {
+      const canvas = await window.html2canvas(slideElement, {
         scale: 0.2,
         logging: false,
 	windowWidth: 1920,
@@ -764,7 +802,8 @@ class SlideEditor {
       thumbnailContainer.appendChild(canvas);
     } catch (err) {
       console.error('Error generating thumbnail:', err);
-      thumbnailContainer.innerHTML = '<div style="color: #999; font-size: 10px;">Preview unavailable</div>';
+      thumbnailContainer.innerHTML =
+	'<div style="color: #999; font-size: 10px;">Preview unavailable</div>';
     }
 
     // Remove temporary iframe
@@ -797,8 +836,10 @@ class SlideEditor {
 
     // Update the wrapper class in the iframe
     if (this.editorFrame && this.editorFrame.contentDocument) {
-      const wrapper = this.editorFrame.contentDocument.getElementById('slide-wrapper');
+      const wrapper = this.editorFrame.contentDocument.getElementById(
+	'slide-wrapper');
       if (wrapper) {
+	wrapper.lang = slide.lang ?? this.lang;
 	wrapper.className = this.makeClassName(slide);
 
         // Reset CSS counter to make slide numbers display correctly
@@ -835,11 +876,12 @@ class SlideEditor {
     if (this.slides.length === 0) return;
 
     if (this.isHtmlView) {
-      this.slides[this.currentSlideIndex].content = document.getElementById('html-editor').value;
+      this.slides[this.currentSlideIndex].content =
+	document.getElementById('html-editor').value;
     } else {
       if (this.editor)
 	this.slides[this.currentSlideIndex].content =
- 	  this.prettify('', ...this.editor.getRoot().childNodes);
+	  this.editor.getHTML(false, this.prettifyContents);
     }
 
     if (this.slides[this.currentSlideIndex].thumbnailtimer !== null)
@@ -865,7 +907,8 @@ class SlideEditor {
       toggleButton.textContent = '🔄 WYSIWYG view';
 
       const currentSlide = this.slides[this.currentSlideIndex];
-      document.getElementById('html-editor').value = currentSlide ? currentSlide.content : '';
+      document.getElementById('html-editor').value =
+	currentSlide ? currentSlide.content : '';
     } else {
       wysiwygContainer.style.display = 'flex';
       htmlContainer.style.display = 'none';
@@ -882,6 +925,7 @@ class SlideEditor {
   {
     document.getElementById('stylesheet-url').value = this.cssUrl || '';
     document.getElementById('stylesheet-dialog').style.display = 'flex';
+    document.getElementById('stylesheet-url').focus();
   }
 
   // closeStylesheetDialog -- close the dialog to enter a style sheet URL
@@ -907,6 +951,38 @@ class SlideEditor {
     await this.updateLayoutsAndTransitions();
   }
 
+  // openImageDialog -- show the dialog to enter an image URL
+  openImageDialog()
+  {
+    // document.getElementById('image-url').value = '';
+    document.getElementById('image-dialog').style.display = 'flex';
+    document.getElementById('image-url').focus();
+  }
+
+  // closeImageDialog -- close the dialog to enter a style sheet URL
+  closeImageDialog()
+  {
+    document.getElementById('image-dialog').style.display = 'none';
+  }
+
+  // browseImage -- get the result of a file selection dialog and store it
+  async browseImage()
+  {
+    const filePath = await window.electronAPI.selectImageFile();
+    if (filePath) document.getElementById('image-url').value = filePath;
+  }
+
+  // applyImage -- handle the closing of the style sheet URL dialog
+  async applyImage()
+  {
+    const filePath = document.getElementById('image-url').value;
+    const altText = document.getElementById('alt-text').value;
+    this.closeImageDialog();
+    this.hasUnsavedChanges = true;
+    this.editor.insertImage(filePath, { alt: altText });
+    this.editor.saveUndoState();
+  }
+
   // updateLayoutsAndTransitions - update slide layouts and transitions menus
   async updateLayoutsAndTransitions()
   {
@@ -917,7 +993,7 @@ class SlideEditor {
 
       const result = await window.electronAPI.readFile(jsonPath);
       if (!result.success) {
-	console.log(`No menu config found at ${jsonPath}. Error was:\n${result.error}\nUsing defaults`);
+	console.log(`Info: No style sheet meta data found at ${jsonPath}. Error was: ${result.error}\nUsing defaults`);
 	result.content = '{}';
       }
 
@@ -935,14 +1011,15 @@ class SlideEditor {
     else
       this.cssUrlInfo.documentation = new URL(json.documentation,
 	(this.cssUrl.match(/^[a-z]+:/i) ? '' : 'file://') + this.cssUrl).href;
-    this.cssUrlInfo["supports-clear"] = json['supports-clear'] ?? true;
+    this.cssUrlInfo["supports-clear"] = json['supports-clear'] ?? false;
     this.cssUrlInfo.layouts = json.layouts ?? SlideEditor.defaultLayouts;
     this.cssUrlInfo.transitions = json.transitions
       ?? SlideEditor.defaultTransitions;
 
     // Make sure all the class fields contain arrays, not single strings.
     for (const layout of this.cssUrlInfo.layouts)
-      if (!Array.isArray(layout.class)) layout.class = [layout.class];
+      if (!layout.class) layout.class = [];
+      else if (!Array.isArray(layout.class)) layout.class = [layout.class];
 
     // Update the menus
     window.electronAPI.updateLayoutAndTransitionsMenus(this.cssUrlInfo);
@@ -953,8 +1030,8 @@ class SlideEditor {
       styleSelect.innerText = '';
       for (const layout of this.cssUrlInfo.layouts) {
 	const option = document.createElement('option');
-	option.setAttribute('value', layout.class);
-	option.append("" + layout.name);
+	option.setAttribute('value', layout.class[0] ?? '');
+	option.append('' + layout.name ?? layout.class[0] ?? '');
 	styleSelect.append(option);
       }
       const currentSlide = this.slides[this.currentSlideIndex];
@@ -1114,7 +1191,8 @@ class SlideEditor {
   }
 
   // newFile -- handle click on "new file" menu item (or equivalent keypress)
-  newFile() {
+  newFile()
+  {
     if (this.hasUnsavedChanges && !confirm('Create a new file? Unsaved changes will be lost.')) {
       return;
     }
@@ -1134,7 +1212,8 @@ class SlideEditor {
     else await this.saveFileAs();
   }
 
-  async saveFileAs() {
+  async saveFileAs()
+  {
     const filePath = await window.electronAPI.saveFileDialog(this.currentFilePath);
     if (filePath) {
       this.currentFilePath = filePath;
@@ -1190,18 +1269,19 @@ class SlideEditor {
   {
     const realdir = await this.fileDirectory
 	  ? await window.electronAPI.getRealPath(this.fileDirectory) : null;
+    const lang = this.lang ? ` lang="${this.escapeHTML(this.lang)}"` : '';
 
-    let html = '<!DOCTYPE html>\n<html lang="en">\n<head>\n';
+    let html = `<!DOCTYPE html>\n<html${lang}>\n<head>\n`;
     html += '    <meta charset="UTF-8">\n';
     html += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
     html += '    <title>Slide Deck</title>\n';
 
     // Add base tag if we have a current file directory
-    if (realdir) html += `    <base href="${realdir}/">\n`;
+    if (realdir) html += `    <base href="file://${realdir}/">\n`;
 
     // Add CSS link, if we have a style sheet.
     if (this.cssUrl) {
-      if (cssUrl.match(/^[a-z]+:/i) || !realdir)
+      if (this.cssUrl.match(/^[a-z]+:/i) || !realdir)
 	html += `    <link rel="stylesheet" href="${this.cssUrl}">\n`;
       else
 	html += '    <link rel="stylesheet" href="'
@@ -1225,7 +1305,8 @@ class SlideEditor {
 
     this.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
-      html += `    <section${id} class="${this.makeClassName(slide)}">\n`;
+      const lang = slide.lang ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
+      html += `    <section${id}${lang} class="${this.makeClassName(slide)}">\n`;
       html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
       html += '    </section>\n';
     });
@@ -1239,8 +1320,9 @@ class SlideEditor {
   {
     // Use provided targetPath or fall back to currentFilePath
     const filePath = targetPath || this.currentFilePath;
+    const lang = this.lang ? ` lang="${this.escapeHTML(this.lang)}"` : '';
 
-    let html = '<!DOCTYPE html>\n<html lang="en">\n<head>\n';
+    let html = `<!DOCTYPE html>\n<html${lang}>\n<head>\n`;
     html += '    <meta charset="UTF-8">\n';
     html += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
     html += '    <title>Slide Deck</title>\n';
@@ -1271,7 +1353,8 @@ class SlideEditor {
 
     this.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
-      html += `    <section${id} class="${this.makeClassName(slide)}">\n`;
+      const lang = slide.lang ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
+      html += `    <section${id}${lang} class="${this.makeClassName(slide)}">\n`;
       html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
       html += '    </section>\n';
     });
@@ -1297,7 +1380,7 @@ class SlideEditor {
       const baseTag = this.editorFrame.contentDocument.getElementById('base-url');
       const realdir = directory
 	    ? await window.electronAPI.getRealPath(directory) : null;
-      if (baseTag && realdir) baseTag.href = realdir + '/';
+      if (baseTag && realdir) baseTag.href = 'file://' + realdir + '/';
     }
 
     await this.parseHtml(content, directory, path);
@@ -1310,6 +1393,9 @@ class SlideEditor {
   {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
+
+    // Extract language.
+    this.lang = doc.documentElement.lang;
 
     // Extract CSS URL
     const linkElement = doc.querySelector('link[rel="stylesheet"]');
@@ -1349,6 +1435,9 @@ class SlideEditor {
     const sections = doc.querySelectorAll('body > .slide, body > .comment');
 
     sections.forEach(section => {
+      // Find the language, if any.
+      const lang = section.lang;
+
       // Find the type and remove it from the classes.
       const type = section.classList.contains('comment') ? 'comment' : 'slide';
       section.classList.remove(type);
@@ -1371,17 +1460,20 @@ class SlideEditor {
 	for (const c of transition.split(' ')) section.classList.remove(c);
 
       // Find the slide's layout class, if any, and remove it from the classes.
-      let layout = '';
+      let layout = '', classes;
       for (const h of this.cssUrlInfo.layouts)
 	for (const x of h.class)
-	  if (x && x.split(' ').every(c => section.classList.contains(c)))
-	    layout = h.class[0]; // The first entry is the canonical one
+	  if (x && x.split(' ').every(c => section.classList.contains(c))) {
+	    classes = x;
+	    layout = h.class[0]; // The zeroth entry is the canonical one
+	  }
       if (layout)
-	for (const c of layout.split(' ')) section.classList.remove(c);
+	for (const c of classes.split(' ')) section.classList.remove(c);
 
       this.slides.push({
         type: type,
         content: section.innerHTML.trim(),
+	lang: lang,
 	styleClass: layout,
         transition: transition,
         slideTextfit: textfit,
@@ -1978,13 +2070,14 @@ class SlideEditor {
 
     const range = selection.getRangeAt(0);
     let element = range.commonAncestorContainer;
-
     if (element.nodeType === 3) element = element.parentNode;
-
-    // Get current class
     const currentClass = element.className || '';
-    document.getElementById('class-input').value = currentClass;
-    document.getElementById('class-dialog').style.display = 'flex';
+
+    const dialog = document.getElementById('class-dialog');
+    const input = document.getElementById('class-input');
+    input.value = currentClass;
+    dialog.style.display = 'flex';
+    input.focus();
   }
 
   closeClassDialog()
