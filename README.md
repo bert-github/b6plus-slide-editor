@@ -18,7 +18,7 @@ A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 
 | Version | Debian (amd64) | MacOS (arm64) | MacOS (Intel) | Windows (installer) | Windows (executable) |
 |---------|----------------|---------------|---------------|---------------------|----------------------|
-| 0.1.0   | [b6plus-slide-editor_0.1.0_amd64.deb](https://www.w3.org/Talks/Tools/b6plus-editor/b6plus-slide-editor_0.1.0_amd64.deb) | [B6+ Slide Editor-0.1.0-arm64.dmg](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor-0.1.0-arm64.dmg) | [B6+ Slide Editor-0.1.0.dmg](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor-0.1.0.dmg) | [B6+ Slide Editor Setup 0.1.0.exe](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor%20Setup%200.1.0.exe) | [B6+ Slide Editor 0.1.0.exe](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor%200.1.0.exe) |
+| 0.1.0   | [b6plus-slide-editor_0.1.0_amd64.deb](https://nix.w3.org/~bbos/b6plus-editor/b6plus-slide-editor_0.1.0_amd64.deb) | [B6+ Slide Editor-0.1.0-arm64.dmg](https://nix.w3.org/~bbos/b6plus-editor/B6+%20Slide%20Editor-0.1.0-arm64.dmg) | [B6+ Slide Editor-0.1.0.dmg](https://nix.w3.org/~bbos/b6plus-editor/B6+%20Slide%20Editor-0.1.0.dmg) | [B6+ Slide Editor Setup 0.1.0.exe](https://nix.w3.org/~bbos/b6plus-editor/B6+%20Slide%20Editor%20Setup%200.1.0.exe) | [B6+ Slide Editor 0.1.0.exe](https://nix.w3.org/~bbos/b6plus-editor/B6+%20Slide%20Editor%200.1.0.exe) |
 
 ## Installation
 
