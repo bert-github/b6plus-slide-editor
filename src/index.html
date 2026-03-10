@@ -167,15 +167,15 @@
 
     <!-- Stylesheet Dialog -->
     <div id="stylesheet-dialog" class="modal" style="display: none;">
-      <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-content">
         <div class="modal-header">
           <h3>Change Style Sheet</h3>
           <button id="close-stylesheet-dialog" class="close-button">✕</button>
         </div>
-        <div style="padding: 20px;">
-          <label for="stylesheet-url" style="display: block; margin-bottom: 8px; font-weight: bold;">CSS URL or file path:</label>
-          <input type="text" id="stylesheet-url" placeholder="https://example.com/styles.css or /path/to/styles.css" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
-          <button id="browse-stylesheet" title="Browse for local CSS file" style="padding: 8px 16px;">📁 Browse...</button>
+        <div>
+          <label for="stylesheet-url"">CSS URL or file path:</label>
+          <input type="text" id="stylesheet-url" placeholder="https://example.com/styles.css or /path/to/styles.css">
+          <button id="browse-stylesheet" title="Browse for local CSS file">📁 Browse...</button>
         </div>
         <div class="modal-footer">
           <button id="apply-stylesheet">Apply</button>
@@ -186,15 +186,15 @@
 
     <!-- Class Editor Dialog -->
     <div id="class-dialog" class="modal" style="display: none;">
-      <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-content">
         <div class="modal-header">
           <h3>Edit Class Attribute</h3>
           <button id="close-class-dialog" class="close-button">✕</button>
         </div>
-        <div style="padding: 20px;">
-          <label for="class-input" style="display: block; margin-bottom: 8px; font-weight: bold;">Class name(s):</label>
-          <input type="text" id="class-input" placeholder="my-class another-class" style="width: 100%; padding: 8px; box-sizing: border-box;">
-          <p style="margin-top: 8px; font-size: 12px; color: #666;">Separate multiple classes with spaces</p>
+        <div>
+          <label for="class-input">Class name(s):</label>
+          <input type="text" id="class-input" placeholder="my-class another-class">
+          <p><small>Separate multiple classes with spaces</small></p>
         </div>
         <div class="modal-footer">
           <button id="apply-class">Apply</button>
@@ -206,14 +206,14 @@
 
     <!-- Link Dialog -->
     <div id="link-dialog" class="modal" style="display: none;">
-      <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-content">
         <div class="modal-header">
           <h3>Insert/Edit Link</h3>
           <button id="close-link-dialog" class="close-button">✕</button>
         </div>
-        <div style="padding: 20px;">
-          <label for="link-url" style="display: block; margin-bottom: 8px; font-weight: bold;">URL:</label>
-          <input type="text" id="link-url" placeholder="https://example.com" style="width: 100%; padding: 8px; box-sizing: border-box;">
+        <div>
+          <label for="link-url">URL:</label>
+          <input type="text" id="link-url" placeholder="https://example.com">
         </div>
         <div class="modal-footer">
           <button id="apply-link">Apply</button>
@@ -225,21 +225,80 @@
 
     <!-- Image Dialog -->
     <div id="image-dialog" class="modal" style="display: none;">
-      <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-content">
         <div class="modal-header">
           <h3>Insert Image</h3>
           <button id="close-image-dialog" class="close-button">✕</button>
         </div>
-        <div style="padding: 20px;">
-          <label for="image-url" style="display: block; margin-bottom: 8px; font-weight: bold;">Image URL or file path:</label>
-          <input type="text" id="image-url" placeholder="https://example.com/image.jpg or /path/to/image.jpg" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
-          <button id="browse-image" title="Browse for local image file" style="padding: 8px 16px;">📁 Browse...</button>
-          <label for="alt-text" style="display: block; margin-bottom: 8px; font-weight: bold;">Text alternative (‘alt text’):</label>
-          <input type="text" id="alt-text" placeholder="" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+        <div>
+          <label for="image-url">Image URL or file path:</label>
+          <input type="text" id="image-url" placeholder="https://example.com/image.jpg or /path/to/image.jpg">
+          <button id="browse-image" title="Browse for local image file">📁 Browse...</button>
+          <label for="alt-text">Text alternative (‘alt text’):</label>
+          <input type="text" id="alt-text" placeholder="">
         </div>
         <div class="modal-footer">
           <button id="apply-image">Apply</button>
           <button id="cancel-image">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Open File dialog -->
+    <div id="open-file-dialog" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Open a Slide Deck</h3>
+          <button id="close-open-file-dialog" class="close-button">✕</button>
+        </div>
+        <div>
+          <label for="open-file-url">URL or file path:</label>
+          <input type="text" id="open-file-url" placeholder="https://example.com/slides.html or /path/to/slides.html">
+          <button id="browse-open-file" title="Browse for local file">📁 Browse...</button>
+        </div>
+        <div class="modal-footer">
+          <button id="apply-open-file">Apply</button>
+          <button id="cancel-open-file">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save As Dialog -->
+    <div id="save-as-dialog" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Save Slide Deck</h3>
+          <button id="close-save-as-dialog" class="close-button">✕</button>
+        </div>
+        <div>
+          <label for="save-as-url">URL or file path:</label>
+          <input type="text" id="save-as-url" placeholder="https://example.com/slides.html or /path/to/slides.html">
+          <button id="browse-save-as" title="Browse for local file">📁 Browse...</button>
+        </div>
+        <div class="modal-footer">
+          <button id="apply-save-as">Apply</button>
+          <button id="cancel-save-as">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password dialog -->
+    <div id="password-dialog" class="modal" style="display: none">
+      <div class="modal-content">
+	<div class="modal-header">
+	  <h3>User name and password required</h3>
+	  <button id="close-password-dialog" class="close-button">✕</button>
+	</div>
+	<div>
+	  <p>URL: <span id="password-dialog-label"></span></p>
+	  <label for="password-dialog-username-input">User name:</label>
+          <input type="text" id="password-dialog-username-input">
+	  <label for="password-dialog-password-input">Password:</label>
+          <input type="password" id="password-dialog-password-input">
+        </div>
+        <div class="modal-footer">
+          <button id="apply-password">Apply</button>
+          <button id="cancel-password">Cancel</button>
         </div>
       </div>
     </div>
