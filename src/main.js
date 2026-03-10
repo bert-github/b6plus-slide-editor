@@ -1,17 +1,22 @@
-const { app, BrowserWindow, Menu, MenuItem, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, MenuItem, dialog, ipcMain, net }
+      = require('electron');
 const path = require('path');
 //const fs = require('fs').promises;
 const fs = require('fs');
 const { pathToFileURL, fileURLToPath } = require('url');
+// const https = require('https');
+const http2 = require('http2');
+const mime = require('mime-types');
+
 let mainWindow;
 
 const defaultLayouts = [
   { label: 'Normal slide',
-    click: () => mainWindow.webContents.send('set-slide-layout', '') },
+    click: () => mainWindow.webContents.send('r-set-slide-layout', '') },
   { label: 'Cover slide',
-    click: () => mainWindow.webContents.send('set-slide-layout', 'cover') },
+    click: () => mainWindow.webContents.send('r-set-slide-layout', 'cover') },
   { label: 'Final slide',
-    click: () => mainWindow.webContents.send('set-slide-layout', 'final') }
+    click: () => mainWindow.webContents.send('r-set-slide-layout', 'final') }
 ];
 const defaultTransitions = [];
 const template = [
@@ -35,16 +40,16 @@ const template = [
     submenu: [
       { label: 'New',
         accelerator: 'CmdOrCtrl+N',
-        click: () => mainWindow.webContents.send('new-file') },
+        click: () => mainWindow.webContents.send('r-new-file') },
       { label: 'Open...',
         accelerator: 'CmdOrCtrl+O',
-        click: () => openFile() },
+        click: () => mainWindow.webContents.send('r-open-file') },
       { label: 'Save',
         accelerator: 'CmdOrCtrl+S',
-        click: () => mainWindow.webContents.send('save-file') },
+        click: () => mainWindow.webContents.send('r-save-file') },
       { label: 'Save As...',
         accelerator: 'CmdOrCtrl+Shift+S',
-        click: () => mainWindow.webContents.send('save-file-as') },
+        click: () => mainWindow.webContents.send('r-save-as') },
       ...(process.platform !== 'darwin' ? [
         { type: 'separator' },
         { label: 'Quit',
@@ -56,10 +61,10 @@ const template = [
     submenu: [
       { label: 'Undo',
         accelerator: 'CmdOrCtrl+Z',
-        click: () => mainWindow.webContents.send('undo') },
+        click: () => mainWindow.webContents.send('r-undo') },
       { label: 'Redo',
         accelerator: 'CmdOrCtrl+Shift+Z',
-        click: () => mainWindow.webContents.send('redo') },
+        click: () => mainWindow.webContents.send('r-redo') },
       { type: 'separator' },
       { role: 'cut' },
       { role: 'copy' },
@@ -67,126 +72,126 @@ const template = [
       { type: 'separator' },
       { label: 'Select All',
         accelerator: 'CmdOrCtrl+A',
-        click: () => mainWindow.webContents.send('select-all') },
+        click: () => mainWindow.webContents.send('r-select-all') },
       { type: 'separator' },
       { label: 'Change Style Sheet...',
         accelerator: 'CmdOrCtrl+Shift+L',
-        click: () => mainWindow.webContents.send('change-stylesheet') },
+        click: () => mainWindow.webContents.send('r-change-stylesheet') },
       { label: 'Custom CSS...',
-        click: () => mainWindow.webContents.send('edit-custom-css') }
+        click: () => mainWindow.webContents.send('r-edit-custom-css') }
     ] },
   { label: 'Inline',
     submenu: [
       { label: 'Strong',
         accelerator: 'CmdOrCtrl+B',
-        click: () => mainWindow.webContents.send('format-inline', 'strong') },
+        click: () => mainWindow.webContents.send('r-format-inline', 'strong') },
       { label: 'Emphasis',
         accelerator: 'CmdOrCtrl+I',
-        click: () => mainWindow.webContents.send('format-inline', 'em') },
+        click: () => mainWindow.webContents.send('r-format-inline', 'em') },
       { label: 'Bold',
-        click: () => mainWindow.webContents.send('format-inline', 'b') },
+        click: () => mainWindow.webContents.send('r-format-inline', 'b') },
       { label: 'Italic',
-        click: () => mainWindow.webContents.send('format-inline', 'i') },
+        click: () => mainWindow.webContents.send('r-format-inline', 'i') },
       { label: 'Underline',
         accelerator: 'CmdOrCtrl+U',
-        click: () => mainWindow.webContents.send('format-inline', 'u') },
+        click: () => mainWindow.webContents.send('r-format-inline', 'u') },
       { label: 'Strikethrough',
-        click: () => mainWindow.webContents.send('format-inline', 's') },
+        click: () => mainWindow.webContents.send('r-format-inline', 's') },
       { label: 'Code',
-        click: () => mainWindow.webContents.send('format-inline', 'code') },
+        click: () => mainWindow.webContents.send('r-format-inline', 'code') },
       { type: 'separator' },
       { label: 'Insert Link...',
         accelerator: 'CmdOrCtrl+K',
-        click: () => mainWindow.webContents.send('format-link') },
+        click: () => mainWindow.webContents.send('r-format-link') },
       { label: 'Remove Formatting',
-        click: () => mainWindow.webContents.send('format-removeformat') },
+        click: () => mainWindow.webContents.send('r-format-removeformat') },
       { type: 'separator' },
       { label: 'Add Image...',
-	click: () => mainWindow.webContents.send('add-image') },
+	click: () => mainWindow.webContents.send('r-add-image') },
       { type: 'separator' },
       { label: 'Edit Class...',
-        click: () => mainWindow.webContents.send('edit-class') }
+        click: () => mainWindow.webContents.send('r-edit-class') }
     ] },
   { label: 'Blocks',
     submenu: [
       { label: 'Paragraph',
-	click: () => mainWindow.webContents.send('format-block', 'p') },
+	click: () => mainWindow.webContents.send('r-format-block', 'p') },
       { label: 'Heading 1',
-	click: () => mainWindow.webContents.send('format-block', 'h1') },
+	click: () => mainWindow.webContents.send('r-format-block', 'h1') },
       { label: 'Heading 2',
-	click: () => mainWindow.webContents.send('format-block', 'h2') },
+	click: () => mainWindow.webContents.send('r-format-block', 'h2') },
       { label: 'Heading 3',
-	click: () => mainWindow.webContents.send('format-block', 'h3') },
+	click: () => mainWindow.webContents.send('r-format-block', 'h3') },
       { label: 'Heading 4',
-	click: () => mainWindow.webContents.send('format-block', 'h4') },
+	click: () => mainWindow.webContents.send('r-format-block', 'h4') },
       { label: 'Heading 5',
-	click: () => mainWindow.webContents.send('format-block', 'h5') },
+	click: () => mainWindow.webContents.send('r-format-block', 'h5') },
       { label: 'Heading 6',
-	click: () => mainWindow.webContents.send('format-block', 'h6') },
+	click: () => mainWindow.webContents.send('r-format-block', 'h6') },
       { label: 'Address',
-	click: () => mainWindow.webContents.send('format-block', 'address') },
+	click: () => mainWindow.webContents.send('r-format-block', 'address') },
       { label: 'Preformatted',
-	click: () => mainWindow.webContents.send('format-block', 'pre') },
+	click: () => mainWindow.webContents.send('r-format-block', 'pre') },
       { type: 'separator' },
       { label: 'Blockquote',
-	click: () => mainWindow.webContents.send('formatquote') },
+	click: () => mainWindow.webContents.send('r-format-quote') },
       { label: 'Division',
-	click: () => mainWindow.webContents.send('format-block', 'div') },
+	click: () => mainWindow.webContents.send('r-format-block', 'div') },
       { label: 'Details',
-	click: () => mainWindow.webContents.send('format-block', 'details') },
+	click: () => mainWindow.webContents.send('r-format-block', 'details') },
       { label: 'Article',
-	click: () => mainWindow.webContents.send('format-block', 'article') },
+	click: () => mainWindow.webContents.send('r-format-block', 'article') },
       { label: 'Section',
-	click: () => mainWindow.webContents.send('format-block', 'section') },
+	click: () => mainWindow.webContents.send('r-format-block', 'section') },
       { label: 'Aside',
-	click: () => mainWindow.webContents.send('format-block', 'aside') },
+	click: () => mainWindow.webContents.send('r-format-block', 'aside') },
       { type: 'separator' },
       { label: 'Remove Container',
-	click: () => mainWindow.webContents.send('format-block', 'unwrap') },
+	click: () => mainWindow.webContents.send('r-format-block', 'unwrap') },
       { type: 'separator' },
       { label: 'Bulleted List',
-        click: () => mainWindow.webContents.send('format-ul') },
+        click: () => mainWindow.webContents.send('r-format-ul') },
       { label: 'Numbered List',
-        click: () => mainWindow.webContents.send('format-ol') },
+        click: () => mainWindow.webContents.send('r-format-ol') },
       { label: 'Push To Sub-list',
-	click: () => mainWindow.webContents.send('increase-list-level') },
+	click: () => mainWindow.webContents.send('r-increase-list-level') },
       { label: 'Pull From Sub-list',
-	click: () => mainWindow.webContents.send('decrease-list-level') },
+	click: () => mainWindow.webContents.send('r-decrease-list-level') },
       { type: 'separator' },
       { label: 'Edit Class...',
-        click: () => mainWindow.webContents.send('edit-class') }
+        click: () => mainWindow.webContents.send('r-edit-class') }
     ] },
   { id: 'table',
     label: 'Tables',
     submenu: [
       { label: 'Insert Table',
-	click: () => mainWindow.webContents.send('make-table') },
+	click: () => mainWindow.webContents.send('r-make-table') },
       { label: 'Add Headings Row',
-	click: () => mainWindow.webContents.send('add-headings-row') },
+	click: () => mainWindow.webContents.send('r-add-headings-row') },
       { label: 'Add Row',
-	click: () => mainWindow.webContents.send('add-row') },
+	click: () => mainWindow.webContents.send('r-add-row') },
       { label: 'Add Column',
-	click: () => mainWindow.webContents.send('add-column') },
+	click: () => mainWindow.webContents.send('r-add-column') },
       { label: 'Delete Rows',
-	click: () => mainWindow.webContents.send('delete-rows') },
+	click: () => mainWindow.webContents.send('r-delete-rows') },
       { label: 'Delete Columns',
-	click: () => mainWindow.webContents.send('delete-columns') },
+	click: () => mainWindow.webContents.send('r-delete-columns') },
       { label: 'Toggle Heading/Data Cell',
-	click: () => mainWindow.webContents.send('toggle-heading-cell') }
+	click: () => mainWindow.webContents.send('r-toggle-heading-cell') }
     ] },
   { id: 'slide',
     label: 'Slide',
     submenu: [
       { label: 'Add Slide',
         accelerator: 'CmdOrCtrl+Shift+N',
-        click: () => mainWindow.webContents.send('add-slide') },
+        click: () => mainWindow.webContents.send('r-add-slide') },
       { label: 'Add Notes',
         accelerator: 'CmdOrCtrl+Shift+M',
-        click: () => mainWindow.webContents.send('add-notes') },
+        click: () => mainWindow.webContents.send('r-add-notes') },
       { type: 'separator' },
       { label: 'Delete Slide',
         accelerator: 'CmdOrCtrl+Shift+Backspace',
-        click: () => mainWindow.webContents.send('delete-slide') },
+        click: () => mainWindow.webContents.send('r-delete-slide') },
       { type: 'separator' },
       { label: 'Slide Layout',
 	id: 'slide-layout',
@@ -200,31 +205,31 @@ const template = [
       { label: 'Omit decoration && slide number',
 	id: 'set-clear',
 	type: 'checkbox',
-	click: () => mainWindow.webContents.send('set-clear') },
+	click: () => mainWindow.webContents.send('r-set-clear') },
       { label: 'Shrink Text To Fit',
 	id: 'set-textfit',
 	type: 'checkbox',
-	click: () => mainWindow.webContents.send('set-textfit') },
+	click: () => mainWindow.webContents.send('r-set-textfit') },
       { type: 'separator' },
       { label: 'Play',
         accelerator: 'CmdOrCtrl+P',
-        click: () => mainWindow.webContents.send('play-slides') }
+        click: () => mainWindow.webContents.send('r-play-slides') }
     ] },
   { label: 'View',
     submenu: [
       { label: 'Toggle HTML/WYSIWYG View',
         accelerator: 'CmdOrCtrl+Shift+H',
-        click: () => mainWindow.webContents.send('toggle-view') },
+        click: () => mainWindow.webContents.send('r-toggle-view') },
       { type: 'separator' },
       { label: 'Zoom In',
         accelerator: 'CmdOrCtrl+Plus',
-        click: () => mainWindow.webContents.send('zoom-in') },
+        click: () => mainWindow.webContents.send('r-zoom-in') },
       { label: 'Zoom Out',
         accelerator: 'CmdOrCtrl+-',
-        click: () => mainWindow.webContents.send('zoom-out') },
+        click: () => mainWindow.webContents.send('r-zoom-out') },
       { label: 'Reset Zoom',
         accelerator: 'CmdOrCtrl+0',
-        click: () => mainWindow.webContents.send('zoom-reset') },
+        click: () => mainWindow.webContents.send('r-zoom-reset') },
       { type: 'separator' },
       { label: 'Toggle DevTools',
         accelerator: 'CmdOrCtrl+Shift+I',
@@ -243,25 +248,22 @@ const template = [
       { label: 'Style Help',
 	id: 'style-help',
 	enabled: false,
-	click: () => mainWindow.webContents.send('style-help') }
+	click: () => mainWindow.webContents.send('r-style-help') }
     ] }
 ];
 
 async function openFileByPath(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const directory = path.dirname(filePath);
-    mainWindow.webContents.send('file-opened', {
-      path: filePath,
-      directory: directory,
-      content: content
-    });
+    mainWindow.webContents.send('r-file-opened',
+      { path: filePath, content: content });
   } catch (err) {
     dialog.showErrorBox('Error', `Failed to open file: ${err.message}`);
   }
 }
 
-function createWindow() {
+function createWindow()
+{
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -279,7 +281,7 @@ function createWindow() {
     // Ask the renderer if there are unsaved changes
     if (!mainWindow.forceClose) {
       e.preventDefault();
-      mainWindow.webContents.send('check-unsaved-changes');
+      mainWindow.webContents.send('r-check-unsaved-changes');
     }
   });
 
@@ -324,37 +326,32 @@ function createWindow() {
   })
 }
 
+
+function setTitle(event, title)
+{
+  mainWindow.setTitle(title ?? app.name);
+}
+
 async function openFile() {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
-      { name: 'HTML Files', extensions: ['html'] },
+      { name: 'HTML Files', extensions: ['html', 'htm'] },
       { name: 'All Files', extensions: ['*'] }
     ]
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
-    try {
-      const filePath = result.filePaths[0];
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const directory = path.dirname(filePath);
-
-      mainWindow.webContents.send('file-opened', {
-        path: filePath,
-        directory: directory,
-        content: content
-      });
-    } catch (err) {
-      dialog.showErrorBox('Error', `Failed to open file: ${err.message}`);
-    }
+    return result.filePaths[0];
   }
 }
 
-ipcMain.handle('save-file-dialog', async (event, currentPath) => {
+async function saveFileDialog (event, currentPath)
+{
   const result = await dialog.showSaveDialog(mainWindow, {
     defaultPath: currentPath || 'slides.html',
     filters: [
-      { name: 'HTML Files', extensions: ['html'] },
+      { name: 'HTML Files', extensions: ['html', 'htm'] },
       { name: 'All Files', extensions: ['*'] }
     ]
   });
@@ -363,40 +360,70 @@ ipcMain.handle('save-file-dialog', async (event, currentPath) => {
     return result.filePath;
   }
   return null;
-});
+}
 
-ipcMain.handle('write-file', async (event, filePath, content) => {
-  try {
-    fs.writeFileSync(filePath, content, 'utf-8');
-    return { success: true };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
-});
-
-ipcMain.handle('read-file', async (event, filePath) => {
-  if (filePath.match(/^[a-z]+:/i) && !filePath.match(/^file:/i)) {
+async function writeFile(event, filePath, content, mediaType, auth = null)
+{
+  if (filePath.match(/^[a-z]+:/i)) {
     try {
-      const url = filePath.match(/^[a-z]+:/i) ? filePath : 'file://' + filePath;
-      const response = await fetch(url, {mode: "no-cors"})
-      const content = await response.text();
-      return {content: content, success: true, error: null};
+      const options = {
+	body: content,
+	credentials: 'include',
+	method: 'PUT',
+	headers: { 'Content-Type': mediaType } };
+      if (auth) {
+	const base64 = Buffer.from(auth, 'utf8').toString('base64');
+	options.headers['Authorization'] = 'Basic ' + base64;
+      }
+      const response = await fetch(filePath, options);
+      const body = await response.text();
+      return { success: response.ok, url: response.url, content: body,
+	status: response.status, error: response.statusText };
     } catch (err) {
-      return {content: null, success: false, error: err.message};
+      return { success: false, error: err.message };
     }
   } else {
     try {
       const path = filePath.replace(/^file:\/\//i, '');
-      const content = fs.readFileSync(filePath, 'utf-8');
-      return {content: content, success: true, error: null};
+      fs.writeFileSync(path, content, 'utf-8');
+      return { success: true, url: path };
     } catch (err) {
-      // throw new Error(`Failed to read file: ${err.message}`);
-      return {content: null, success: false, error: err.message};
+      return { success: false, url: path, error: err.message };
     }
   }
-});
+}
 
-ipcMain.handle('select-css-file', async () => {
+async function readFile(event, filePath, auth = null)
+{
+  if (filePath.match(/^[a-z][a-z]+:/i) && !filePath.match(/^file:/i)) {
+    try {
+      const url = filePath.match(/^[a-z]+:/i) ? filePath : 'file://' + filePath;
+      const options = { credentials: 'include' };
+      if (auth) {
+	const base64 = Buffer.from(auth, 'utf8').toString('base64');
+	options.headers['Authorization'] = 'Basic ' + base64;
+      }
+      const response = await fetch(url, options);
+      const body = await response.text();
+      return { success: response.ok, url: response.url, content: body,
+	status: response.status, error: response.statusText };
+    } catch (err) {
+      return { success: false, error: err.message};
+    }
+  } else {
+    try {
+      const path = filePath.replace(/^file:\/\//i, '');
+      const body = fs.readFileSync(path, 'utf-8');
+      return { success: true, url: filePath, content: body };
+    } catch (err) {
+      // throw new Error(`Failed to read file: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
+}
+
+async function selectCssFile()
+{
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
@@ -409,9 +436,10 @@ ipcMain.handle('select-css-file', async () => {
     return result.filePaths[0];
   }
   return null;
-});
+}
 
-ipcMain.handle('select-image-file', async () => {
+async function selectImageFile()
+{
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
@@ -424,20 +452,34 @@ ipcMain.handle('select-image-file', async () => {
     return result.filePaths[0];
   }
   return null;
-});
+}
 
-ipcMain.handle('resolve-path', async (event, ...paths) => {
+function resolvePath(event, ...paths)
+{
   // Resolve a relative path to a normalized absolute path based on
   // zero or more directories and the current working directory.
   return path.resolve(...paths);
-});
+}
 
-ipcMain.handle('make-relative-path', async (event, fromPath, toPath) => {
+function makeRelativePath(event, fromPath, toPath)
+{
   // Make a path relative from one file to another
   return path.relative(path.dirname(fromPath), toPath);
-});
+}
 
-ipcMain.handle('write-temp-file', async (event, content) => {
+// makeAbsolute -- handler: make a relative path an absolute URL or a real path
+async function makeAbsolute(event, urlRef, base = null)
+{
+  if (!urlRef) return null;
+  else if (urlRef.match(/^[a-z][a-z]+:/i)) return urlRef;
+  else if (!base) return URL.parse('file://' + getRealPath(null, urlRef)).href;
+  else if (base.match(/^[a-z][a-z]+:/)) return URL.parse(urlRef, base).href;
+  else return URL.parse('file://' + getRealPath(null,
+    resolvePath(null, path.dirname(base), urlRef))).href;
+}
+
+function writeTempFile(event, content)
+{
   // Write content to a temporary HTML file
   const os = require('os');
   const tempDir = os.tmpdir();
@@ -449,22 +491,27 @@ ipcMain.handle('write-temp-file', async (event, content) => {
   } catch (err) {
     return { success: false, error: err.message };
   }
-});
+}
 
-ipcMain.handle('get-temp-file-path', async () => {
+function getTempFilePath()
+{
   // Get the path where temp file will be written
   const os = require('os');
   const tempDir = os.tmpdir();
   const resolvedDir = fs.realpathSync(tempDir);
   const tempFilePath = path.join(resolvedDir, 'slide-deck-preview.html');
   return tempFilePath;
-});
+}
 
-ipcMain.handle('get-real-path', async (event, path) => {
-  return fs.realpathSync(path);
-});
+// getRealPath -- handler: return the physical path, i.e., resolving symlinks
+function getRealPath(event, path)
+{
+  try {return fs.realpathSync(path)}
+  catch (e) {return path}
+}
 
-ipcMain.handle('open-in-browser', async (event, url) => {
+async function openInBrowser(event, url)
+{
   // Open url in default browser
   const { shell } = require('electron');
   try {
@@ -473,10 +520,11 @@ ipcMain.handle('open-in-browser', async (event, url) => {
   } catch (err) {
     return { success: false, error: err.message };
   }
-});
+}
 
 // Handle a request to replace the slide layout and transition menus
-ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
+async function updateLayoutAndTransitionsMenus(event, json)
+{
   // The application menu cannot be changed (we cannot add or remove
   // items), it can only be replaced. So instead we update the template
   // and create a new application menu from that.
@@ -504,7 +552,7 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
 	const c = Array.isArray(h.class) ? h.class[0] : h.class;
 	slideLayoutMenu.submenu.push({
 	  label: n,
-	  click: () => mainWindow.webContents.send('set-slide-layout', c)
+	  click: () => mainWindow.webContents.send('r-set-slide-layout', c)
 	});
       }
     }
@@ -526,7 +574,7 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
 	const c = h.class;
 	defTransMenu.submenu.push({
 	  label: n,
-	  click: () => mainWindow.webContents.send('set-default-transition', c)
+	  click: () => mainWindow.webContents.send('r-set-default-transition', c)
 	});
       }
     }
@@ -548,7 +596,7 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
 	const c = h.class;
 	slideTransMenu.submenu.push({
 	  label: n,
-	  click: () => mainWindow.webContents.send('set-slide-transition', c)
+	  click: () => mainWindow.webContents.send('r-set-slide-transition', c)
 	});
       }
     }
@@ -560,40 +608,75 @@ ipcMain.handle('update-layout-and-transitions-menus', async (event, json) => {
   // Also enable/disable the style help menu item.
   const styleHelp = menu.getMenuItemById('style-help');
   if (styleHelp) styleHelp.enabled = !!json.documentation;
-});
+}
 
 // Update the checkbox of the Clear menu item
-ipcMain.handle('set-clear', (event, value) => {
+function setClear(event, value)
+{
   const menu = Menu.getApplicationMenu();
   const item = menu.getMenuItemById('set-clear');
   if (item) item.checked = value;
-});
+}
 
-ipcMain.handle('set-textfit', (event, value) => {
+function setTextfit(event, value)
+{
   const menu = Menu.getApplicationMenu();
   const item = menu.getMenuItemById('set-textfit');
   if (item) item.checked = value;
-});
+}
 
-ipcMain.handle('show-hide-clear', (event, value) => {
+function showHideClear(event, value)
+{
   const menu = Menu.getApplicationMenu();
   const item = menu.getMenuItemById('set-clear');
   if (item) item.enabled = value;
-});
+}
 
 // Handle response from unsaved changes check
-ipcMain.on('proceed-with-close', () => {
+function proceedWithClose()
+{
   if (mainWindow) {
     mainWindow.forceClose = true;
     mainWindow.close();
   }
-});
+}
 
-ipcMain.on('cancel-close', () => {
+function cancelClose()
+{
   // Do nothing, window stays open
-});
+}
 
-app.whenReady().then(createWindow);
+// getMediaType -- get the media type for the file extension of a given path
+function getMediaType(path)
+{
+  return mime.lookup(path);	// returns false if extension is unknown
+}
+
+// Register handlers for messages from the renderer.
+ipcMain.on('a-set-title', setTitle);
+ipcMain.handle('a-save-file-dialog', saveFileDialog);
+ipcMain.handle('a-write-file', writeFile);
+ipcMain.handle('a-read-file', readFile);
+ipcMain.handle('a-open-file', openFile);
+ipcMain.handle('a-select-css-file', selectCssFile);
+ipcMain.handle('a-select-image-file', selectImageFile);
+ipcMain.handle('a-make-absolute', makeAbsolute);
+ipcMain.handle('a-resolve-path', resolvePath);
+ipcMain.handle('a-make-relative-path', makeRelativePath);
+ipcMain.handle('a-write-temp-file', writeTempFile);
+ipcMain.handle('a-get-temp-file-path', getTempFilePath);
+ipcMain.handle('a-get-real-path', getRealPath);
+ipcMain.handle('a-open-in-browser', openInBrowser);
+ipcMain.handle('a-update-layout-and-transitions-menus',
+  updateLayoutAndTransitionsMenus);
+ipcMain.handle('a-get-media-type', getMediaType);
+ipcMain.on('a-set-clear', setClear);
+ipcMain.on('a-set-textfit', setTextfit);
+ipcMain.on('a-show-hide-clear', showHideClear);
+ipcMain.on('a-proceed-with-close', proceedWithClose);
+ipcMain.on('a-cancel-close', cancelClose);
+
+app.whenReady().then(() => createWindow());
 
 // Handle file open from drag and drop or double-click
 app.on('open-file', (event, filePath) => {
