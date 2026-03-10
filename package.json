@@ -1,6 +1,6 @@
 {
   "name": "b6plus-slide-editor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "WYSIWYG editor for HTML slide decks",
   "homepage": "https://www.w3.org/Talks/Tools/b6plus-editor/",
   "main": "src/main.js",
@@ -32,7 +32,8 @@
   },
   "dependencies": {
     "dompurify": "^3.3.1",
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "mime-types": "^3.0.2"
   },
   "build": {
     "appId": "org.w3c.b6plusslideeditor.app",
