@@ -210,6 +210,7 @@ class SlideEditor {
   // initializeSquire -- create an editor with the current slide
   async initializeSquire()
   {
+    const ctrlKey = this.isMac ? "Meta-" : "Ctrl-";
     const frameDoc = this.editorFrame.contentDocument;
     const editorElement = frameDoc.getElementById('slide-wrapper');
 
@@ -232,6 +233,7 @@ class SlideEditor {
       blockTag: 'P',
       blockAttributes: null,
       tagAttributes: {},
+      useImageResizer: false,
       // sanitizeToDOMFragment: (html, editor) => {
       //   const frag = frameDoc.defaultView.DOMPurify.sanitize(html, {
       //     ALLOW_UNKNOWN_PROTOCOLS: true,
@@ -268,26 +270,28 @@ class SlideEditor {
       this.updateFormatButtonStates();
     });
 
-    // Add undo/redo keyboard shortcuts and ESC for selection expansion
-    this.editor.addEventListener('keydown', event => {
-      const mod = this.isMac ? event.metaKey : event.ctrlKey;
+    // The Esc key expands the selection to its enclosing element
+    this.editor.setKeyHandler('Escape', (editor, event, range) => {
+      event.preventDefault();
+      this.expandSelection(range);
+    });
 
-      if (mod && event.key === 'z') {
-        event.preventDefault();
-        if (event.shiftKey) this.editor.redo();
-	else this.editor.undo();
-      }
+    // ArrowLeft & ArrowRight keys select an image if the cursor is next to it
+    this.editor.setKeyHandler('ArrowLeft', (editor, event, range) => {
+      this.handleArrowLeftOrRight(editor, event, range);
+    });
+    this.editor.setKeyHandler('ArrowRight', (editor, event, range) => {
+      this.handleArrowLeftOrRight(editor, event, range);
+    });
 
-      if (mod && event.key === 'y') {
-        event.preventDefault();
-        this.editor.redo();
-      }
 
-      // ESC key to expand selection
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        this.expandSelection();
-      }
+    // After an Undo or Redo event, update the Edit menu
+    this.editor.addEventListener('undoStateChange', event => {
+      const {canUndo, canRedo} = event.detail;
+      window.electronAPI.showUndoRedo(canUndo, canRedo);
+      // If canUndo is false, this slide is unedited. But we cannot
+      // call setEdited(false), because there may have been edits in
+      // other slides.
     });
 
     // Add a handler for when an image is copy-pasted
@@ -295,8 +299,57 @@ class SlideEditor {
       // this.insertImages(event.detail.clipboardData);
     });
 
+    // A click on an image selects that image
+    frameDoc.addEventListener('click', event => {
+      const target = event.target;
+      if (target.nodeName === 'IMG' || target.nodeName === 'svg') {
+	event.preventDefault();
+	event.stopPropagation();
+	const range = target.ownerDocument.createRange();
+	range.setStartBefore(target);
+	range.setEndAfter(target);
+	this.editor.setSelection(range);
+      }
+    });
+
     // Initial path update
     this.updateElementPath();
+  }
+
+  // handleArrowLeftOrRight -- modify the behavior of ArowLeft and ArrowRight
+  handleArrowLeftOrRight(editor, event, range)
+  {
+    const goRight = event.key === 'ArrowRight';
+
+    // If cursor is collapsed and adjacent to an image, select the image.
+    if (range.collapsed) {
+      const { startContainer, startOffset } = range;
+      let imgNode = null;
+
+      if (startContainer.nodeType === 3) {
+        // Text node: check sibling in the direction of travel
+        const sib = goRight
+              ? (startOffset === startContainer.length ? startContainer.nextSibling : null)
+              : (startOffset === 0 ? startContainer.previousSibling : null);
+        if (sib && (sib.nodeName === 'IMG' || sib.nodeName === 'svg'))
+	  imgNode = sib;
+      } else if (startContainer.nodeType === 1) {
+        // Element node: check child at the position we'd move into
+        const child = goRight
+              ? startContainer.childNodes[startOffset]
+              : startContainer.childNodes[startOffset - 1];
+        if (child && (child.nodeName === 'IMG' || child.nodeName === 'svg'))
+	  imgNode = child;
+      }
+
+      if (imgNode) {
+        event.preventDefault();
+        const newRange = imgNode.ownerDocument.createRange();
+	newRange.setStartBefore(imgNode);
+	newRange.setEndAfter(imgNode);
+	editor.setSelection(newRange);
+      }
+    }
   }
 
   // makeClassName -- construct the class attribute for a slide
@@ -317,28 +370,28 @@ class SlideEditor {
 
     const frameDoc = this.editorFrame.contentDocument;
     const editorElement = frameDoc.getElementById('slide-wrapper');
-    const selection = frameDoc.getSelection();
-
     const pathContainer = document.getElementById('element-path');
+    let selectedElement = this.selectedElement();
 
     if (pathContainer) {
 
       pathContainer.innerHTML = '';
 
-      if (!this.isHtmlView && selection.focusNode) {
+      if (!this.isHtmlView && selectedElement) { // selection.focusNode) {
 
 	// Build path
 
-	let node = selection.focusNode;
+	// let node = selection.focusNode;
 
 	// If it's a text node, get the parent element
-	if (node.nodeType === 3) node = node.parentNode;
+	// if (node.nodeType === 3) node = node.parentNode;
+
 
 	// Build path from current node up to the section wrapper
 	const path = [];
-	const wrapper = frameDoc.getElementById('slide-wrapper');
 
-	while (node && node !== wrapper && node !== frameDoc.body) {
+	let node = selectedElement;
+	while (node && node !== editorElement && node !== frameDoc.body) {
 	  if (node.nodeType === 1) path.unshift(node); // Element node
 	  node = node.parentNode;
 	}
@@ -378,11 +431,10 @@ class SlideEditor {
 
     if (blockMenu) {
 
-      if (this.isHtmlView || !selection.focusNode) {
+      if (this.isHtmlView || !selectedElement) { // !selection.focusNode) {
 	blockMenu.value = '';
       } else {
-	let node = selection.focusNode;
-	if (node.nodeType === 3) node = node.parentNode;
+	let node = selectedElement;
 	let block = '';
 	while (!block && node && node !== frameDoc && node !== editorElement) {
 	  const tagName = node.tagName.toLowerCase();
@@ -399,56 +451,36 @@ class SlideEditor {
   {
     if (!this.editor) return;
 
-    const frameDoc = this.editorFrame.contentDocument;
-    const selection = frameDoc.getSelection();
-    const range = frameDoc.createRange();
-
-    range.selectNodeContents(element);
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    // Update path display
-    this.updateElementPath();
+    const range = element.ownerDocument.createRange();
+    range.selectNode(element);
+    // or: range.setStartBefore(element); range.setEndAfter(element);
+    // or: range.selectNodeContents(element);
+    this.editor.setSelection(range);
+    this.previousSelectedElement = element;
   }
 
-  // expandSelection -- handle the Esc key
-  expandSelection()
+  // expandSelection -- expand the selection to the element enclosing the range
+  expandSelection(range)
   {
-    if (!this.editor) return;
-
-    const frameDoc = this.editorFrame.contentDocument;
-    const selection = frameDoc.getSelection();
-
-    if (!selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
     let container = range.commonAncestorContainer;
 
-    // If it's a text node, get the parent element
-    if (container.nodeType === 3) container = container.parentNode;
+    if (container.nodeType === Node.TEXT_NODE
+	&& range.startOffset === 0
+	&& range.endOffset === container.length
+	&& container.parentNode.childNodes.length === 1)
+      // The selection covers the whole of a text node that is the
+      // only child of an element. Treat it as if that element was
+      // selected.
+      container = container.parentNode.parentNode;
+    else if (container.nodeType === Node.TEXT_NODE
+	|| container === this.previousSelectedElement)
+    // If it's a text node, or if it is the element that we just
+    // expanded to, get its parent instead.
+      container = container.parentNode;
 
-    // Check if the entire element is already selected
-    const isFullySelected = (
-      range.startContainer === container &&
-        range.endContainer === container &&
-        range.startOffset === 0 &&
-        range.endOffset === container.childNodes.length
-    ) || (
-      // Or if the range surrounds the entire element
-      range.startContainer === container.parentNode &&
-        range.endContainer === container.parentNode &&
-        range.startOffset === Array.from(container.parentNode.childNodes).indexOf(container) &&
-        range.endOffset === Array.from(container.parentNode.childNodes).indexOf(container) + 1
-    );
-
-    if (isFullySelected) {
-      // Element is fully selected, expand to parent
-      const parentElement = container.parentNode;
-      if (parentElement && parentElement !== frameDoc.body &&
-	  parentElement.id !== 'slide-wrapper')
-        this.selectElement(parentElement);
-    } else {
-      // Element is not fully selected, select the whole element first
+    // We don't expand to the wrapper element.
+    if (container !== container.ownerDocument.body
+	&& container.id !== 'slide-wrapper') {
       this.selectElement(container);
     }
   }
@@ -807,7 +839,7 @@ class SlideEditor {
     const thumbnailContainer = document.getElementById(`thumbnail-${slideIndex}`);
     if (!thumbnailContainer) return; // Speaker notes don't have thumbnails
 
-    console.log(`generateThumbnail(${slideIndex})`);
+    // console.log(`generateThumbnail(${slideIndex})`);
 
     // Calculate slide number
     let slideNumber = 0;
@@ -838,11 +870,11 @@ class SlideEditor {
     const base = this.currentFilePath;
     if (this.isUrl(base)) html += `<base href="${base}">`;
     else if (base) html += `<base href="${new URL('file://' + base).href}">`;
-    console.log(`  ${slideIndex}: base href = ${base}`);
+    // console.log(`  ${slideIndex}: base href = ${base}`);
 
     // Add external CSS if available
     if (this.cssUrl) html += `<link rel="stylesheet" href="${this.cssUrl}">`;
-    console.log(`  ${slideIndex}: stylesheet = ${this.cssUrl}`);
+    // console.log(`  ${slideIndex}: stylesheet = ${this.cssUrl}`);
 
     // Add custom CSS
     // TODO: Escape any occurrence of "</style>"
@@ -872,7 +904,7 @@ class SlideEditor {
     // while (!(frame.contentDocument?.readyState === 'complete'));
     await new Promise(resolve => {frame.addEventListener('load', resolve)});
 
-    console.log(`  ${slideIndex}: readyState = ${frame.contentDocument?.readyState}`);
+    // console.log(`  ${slideIndex}: readyState = ${frame.contentDocument?.readyState}`);
 
     // const sliderect = frame.contentDocument.body.firstElementChild.
     // 	  getBoundingClientRect();
@@ -882,7 +914,7 @@ class SlideEditor {
     // frame.style.zoom = containerrect.width / sliderect.width;
 
     const slideElement = frame.contentDocument.body.firstElementChild;
-    console.log(`  ${slideIndex}: slideElement = ${slideElement}`);
+    // console.log(`  ${slideIndex}: slideElement = ${slideElement}`);
     try {
       // Render to canvas. Use the section element directly.
       const canvas = await window.html2canvas(slideElement, {
@@ -1344,7 +1376,6 @@ class SlideEditor {
     this.currentSlideIndex = 0;
     this.currentFilePath = null;
     window.electronAPI.setTitle(null);
-    this.setEdited(false);
     this.addInitialSlide();
   }
 
@@ -1585,6 +1616,7 @@ class SlideEditor {
     const tempResult = await window.electronAPI.writeTempFile(html);
 
     if (tempResult.success) {
+
       // Open in browser
       const openResult = await window.electronAPI.openInBrowser('file://'
 	  + tempResult.path);
@@ -1692,9 +1724,9 @@ class SlideEditor {
       if (baseTag && realfile) baseTag.setAttribute('href', realfile);
     }
 
+    this.currentFilePath = realfile;
     await this.parseHtml(content);
     console.log(`  parsed ${this.slides.length} slides`);
-    this.currentFilePath = realfile;
     this.setEdited(false);
     this.updateSlidesList();
     this.loadCurrentSlide();
@@ -2362,18 +2394,33 @@ class SlideEditor {
     this.editor.focus();
   }
 
+  // selectedElement -- get selected element, or ancestor if multiple selected
+  selectedElement()
+  {
+    // If the selection contains exactly one element, return that
+    // element, Otherwise, return the deepest element that is a common
+    // ancestor of everything that is selected.
+    const range = this.editor.getSelection();
+    const {commonAncestorContainer, startContainer, startOffset,
+      endContainer, endOffset} = range;
+
+    if (commonAncestorContainer.nodeType === Node.TEXT_NODE)
+      return commonAncestorContainer.parentNode;
+    if (startContainer.nodeType === Node.TEXT_NODE)
+      return commonAncestorContainer;
+    if (commonAncestorContainer === startContainer
+	&& startContainer === endContainer
+ 	&& endOffset === startOffset + 1
+	&& startContainer.childNodes[startOffset].nodeType ===Node.ELEMENT_NODE)
+      return startContainer.childNodes[startOffset];
+    return commonAncestorContainer;
+  }
+
   openClassDialog()
   {
     if (!this.editor || this.isHtmlView) return;
 
-    const frameDoc = this.editorFrame.contentDocument;
-    const selection = frameDoc.getSelection();
-
-    if (!selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    let element = range.commonAncestorContainer;
-    if (element.nodeType === 3) element = element.parentNode;
+    const element = this.selectedElement();
     const currentClass = element.className || '';
 
     const dialog = document.getElementById('class-dialog');
@@ -2396,18 +2443,19 @@ class SlideEditor {
     }
 
     const className = document.getElementById('class-input').value.trim();
-    const frameDoc = this.editorFrame.contentDocument;
-    const selection = frameDoc.getSelection();
+    // const frameDoc = this.editorFrame.contentDocument;
+    // const selection = frameDoc.getSelection();
 
-    if (!selection.rangeCount) {
-      this.closeClassDialog();
-      return;
-    }
+    // if (!selection.rangeCount) {
+    //   this.closeClassDialog();
+    //   return;
+    // }
 
-    const range = selection.getRangeAt(0);
-    let element = range.commonAncestorContainer;
+    // const range = selection.getRangeAt(0);
+    // let element = range.commonAncestorContainer;
 
-    if (element.nodeType === 3) element = element.parentNode;
+    // if (element.nodeType === 3) element = element.parentNode;
+    const element = this.selectedElement();
 
     if (className) element.className = className;
     else element.removeAttribute('class');
@@ -2424,18 +2472,19 @@ class SlideEditor {
       return;
     }
 
-    const frameDoc = this.editorFrame.contentDocument;
-    const selection = frameDoc.getSelection();
+    // const frameDoc = this.editorFrame.contentDocument;
+    // const selection = frameDoc.getSelection();
 
-    if (!selection.rangeCount) {
-      this.closeClassDialog();
-      return;
-    }
+    // if (!selection.rangeCount) {
+    //   this.closeClassDialog();
+    //   return;
+    // }
 
-    const range = selection.getRangeAt(0);
-    let element = range.commonAncestorContainer;
+    // const range = selection.getRangeAt(0);
+    // let element = range.commonAncestorContainer;
 
-    if (element.nodeType === 3) element = element.parentNode;
+    // if (element.nodeType === 3) element = element.parentNode;
+    const element = this.selectedElement();
 
     element.removeAttribute('class');
 
