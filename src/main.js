@@ -60,9 +60,11 @@ const template = [
   { label: 'Edit',
     submenu: [
       { label: 'Undo',
+	id: 'undo',
         accelerator: 'CmdOrCtrl+Z',
         click: () => mainWindow.webContents.send('r-undo') },
       { label: 'Redo',
+	id: 'redo',
         accelerator: 'CmdOrCtrl+Shift+Z',
         click: () => mainWindow.webContents.send('r-redo') },
       { type: 'separator' },
@@ -632,6 +634,15 @@ function showHideClear(event, value)
   if (item) item.enabled = value;
 }
 
+function showUndoRedo(event, canUndo, canRedo)
+{
+  const menu = Menu.getApplicationMenu();
+  const undoItem = menu.getMenuItemById('undo');
+  if (undoItem) undoItem.enabled = canUndo;
+  const redoItem = menu.getMenuItemById('redo');
+  if (redoItem) redoItem.enabled = canRedo;
+}
+
 // Handle response from unsaved changes check
 function proceedWithClose()
 {
@@ -673,6 +684,7 @@ ipcMain.handle('a-get-media-type', getMediaType);
 ipcMain.on('a-set-clear', setClear);
 ipcMain.on('a-set-textfit', setTextfit);
 ipcMain.on('a-show-hide-clear', showHideClear);
+ipcMain.on('a-show-undo-redo', showUndoRedo);
 ipcMain.on('a-proceed-with-close', proceedWithClose);
 ipcMain.on('a-cancel-close', cancelClose);
 
