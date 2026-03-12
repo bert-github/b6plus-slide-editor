@@ -69,6 +69,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setClear: (value) => ipcRenderer.send('a-set-clear', value),
   setTextfit: (value) => ipcRenderer.send('a-set-textfit', value),
   showHideClear: (show) => ipcRenderer.send('a-show-hide-clear', show),
+  showUndoRedo: (canUndo, canRedo) => ipcRenderer.send('a-show-undo-redo',
+    canUndo, canRedo),
   setTitle: (title) => ipcRenderer.send('a-set-title', title),
   getMediaType: (path) => ipcRenderer.invoke('a-get-media-type', path)
 });
