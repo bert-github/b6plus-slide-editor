@@ -115,8 +115,8 @@
   var notWS = /[^ \t\r\n\u200B]/;
 
   // source/node/Category.ts
-  var inlineNodeNames = /^(?:#text|A(?:BBR|CRONYM)?|B(?:R|D[IO])?|C(?:ITE|ODE)|D(?:ATA|EL|FN)|EM|FONT|HR|I(?:FRAME|MG|NPUT|NS)?|KBD|Q|R(?:P|T|UBY)|S(?:AMP|MALL|PAN|TR(?:IKE|ONG)|U[BP]|VG)?|TIME|U(?:SE)?|VAR|WBR|svg|use)$/;
-  var leafNodeNames = /* @__PURE__ */ new Set(["BR", "HR", "IFRAME", "IMG", "INPUT", "SVG"]);
+  var inlineNodeNames = /^(?:#text|A(?:BBR|CRONYM)?|B(?:R|D[IO])?|C(?:ITE|ODE)|D(?:ATA|EL|FN)|EM|FONT|HR|I(?:FRAME|MG|NPUT|NS)?|KBD|Q|R(?:P|T|UBY)|S(?:AMP|MALL|PAN|TR(?:IKE|ONG)|U[BP]|VG)?|TIME|U(?:SE)?|VAR|WBR|svg)$/;
+  var leafNodeNames = /* @__PURE__ */ new Set(["BR", "HR", "IFRAME", "IMG", "INPUT", "SVG", "svg"]);
   var UNKNOWN = 0;
   var INLINE = 1;
   var BLOCK = 2;
@@ -2504,15 +2504,16 @@
         "beforeinput",
         this._beforeInput
       );
-      this._imageResizer = new ImageResizer(root, this);
+      this._imageResizer = this._config.useImageResizer ? new ImageResizer(root, this) : null;
       this.setHTML("");
     }
     destroy() {
+      var _a;
       this._events.forEach((_, type) => {
         this.removeEventListener(type);
       });
       this._mutation.disconnect();
-      this._imageResizer.destroy();
+      (_a = this._imageResizer) == null ? void 0 : _a.destroy();
       this._undoIndex = -1;
       this._undoStack = [];
       this._undoStackLength = 0;
@@ -2547,7 +2548,8 @@
           });
           return frag ? document.importNode(frag, true) : document.createDocumentFragment();
         },
-        didError: (error) => console.log(error)
+        didError: (error) => console.log(error),
+        useImageResizer: true
       };
       if (userConfig) {
         Object.assign(config, userConfig);
