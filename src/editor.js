@@ -103,6 +103,12 @@ class SlideEditor {
     return u && u.match(/^[a-z][a-z]+/i);
   }
 
+  // isLocal -- true if the argument is a local path or a URL with "file:"
+  isLocal(u)
+  {
+    return u && (u.match(/^file:/i) || !u.match(/^[a-z][a-z]+:/i));
+  }
+
   // makeAbsolute -- make a relative path an absolute URL or a real path
   async makeAbsolute(urlRef, base = null)
   {
@@ -112,31 +118,37 @@ class SlideEditor {
   // absolute -- combine a relative path with a base
   absolute(path, base)
   {
-    if (this.isUrl(base)) return URL.parse(path, base)?.href;
-    else if (base) return URL.parse(path, 'file://' + base)?.href;
-    else if (path.match(/^[\/\\]/)) return URL.parse('file://' + path)?.href;
-    else return URL.parse(path)?.href;
+    let r;
+
+    if (this.isUrl(base)) r = URL.parse(path, base)?.href;
+    else if (base) r = URL.parse(path, 'file://' + base)?.href;
+    else if (path.match(/^[\/\\]/)) r = URL.parse('file://' + path)?.href;
+    else r = URL.parse(path)?.href;
+    console.log(`absolute(${path}, ${base}) -> ${r}`);
+    return r;
   }
 
   // relative -- return a relative path from base to path
   relative(base, path)
   {
+    let r;
+
     // base and path must be URLs or paths that start at "/"
+    console.log(`relative(${base}, ${path})`);
     const baseUrl = URL.parse(this.isUrl(base) ? base : 'file://' + base);
     const pathUrl = URL.parse(this.isUrl(path) ? path : 'file://' + path);
-    if (baseUrl.origin !== pathUrl.origin) return path;
-    const b = baseUrl.path.split('/'); b.pop();
-    const p = pathUrl.path.split('/');
-    while (b.length && b[0] === p[0]) {b.shift(); p.shift()}
-    if (b.length === 0) pathUrl.path = p.join('/');
-    else pathUrl.path = b.map(s => '..').join('/') + p.join('/');
-    return pathUrl.href;
-  }
-
-  // rewritePath -- return a path that is relative to newBase instead of oldBase
-  rewritePath(path, oldBase, newBase)
-  {
-    return this.relative(newBase, this.absolute(path, oldBase));
+    if (baseUrl.origin !== pathUrl.origin) {
+      r = path;
+    } else {
+      const b = baseUrl.pathname.split('/'); b.pop();
+      const p = pathUrl.pathname.split('/');
+      while (b.length && b[0] === p[0]) {b.shift(); p.shift()}
+      if (b.length === 0) r = p.join('/');
+      else r = b.map(s => '..').join('/') + '/' + p.join('/')
+      r += pathUrl.search + pathUrl.hash;
+    }
+    console.log(`  -> ${r}`);
+    return r;
   }
 
   // setEdited -- flag the current document as edited or not and update the window title
@@ -540,6 +552,9 @@ class SlideEditor {
 
     window.electronAPI.onStyleHelp(() => this.styleHelp());
 
+    window.electronAPI.onAskPassword((event, url, realm) => this.askPassword(
+      url, realm));
+
     // Toolbar buttons
     document.getElementById('play-slides').addEventListener('click', () => this.playSlides());
     document.getElementById('add-slide').addEventListener('click', () => this.addSlide());
@@ -899,9 +914,6 @@ class SlideEditor {
     frame.srcdoc = html;
 
     // Wait for styles and images to load
-    // // await new Promise(resolve => setTimeout(resolve, 100));
-    // do {await new Promise(resolve => setTimeout(resolve, 50))}
-    // while (!(frame.contentDocument?.readyState === 'complete'));
     await new Promise(resolve => {frame.addEventListener('load', resolve)});
 
     // console.log(`  ${slideIndex}: readyState = ${frame.contentDocument?.readyState}`);
@@ -1112,16 +1124,9 @@ class SlideEditor {
     if (filePath) {
       const realpath = await this.makeAbsolute(filePath);
       console.log(`applyOpenFile: realpath = ${realpath}`);
-      const origin = this.getOrigin(realpath);
-      const auth = this.auths.get(origin);
-      const result = await window.electronAPI.readFile(realpath, auth);
+      const result = await this.readFileWithAuth(realpath);
       if (result.success) {
-	this.fileOpened({ path: filePath, content: result.content });
-      } else if (result.status === 401) {
-	const textInput = document.getElementById('save-as-url');
-	textInput.value = result.url; // It may have been redirected
-	this.nextAction = 'open';
-	this.openPasswordDialog(result.url);
+	this.fileOpened({ url: result.url, content: result.content });
       } else {
 	alert('Error opening file: ' + result.error);
       }
@@ -1169,14 +1174,16 @@ class SlideEditor {
       jsonPath = await this.makeAbsolute(
 	this.cssUrl.replace(/\.css$/i, '') + '.json', this.currentFilePath);
 
-      const result = await window.electronAPI.readFile(jsonPath);
+      const result = await this.readFileWithAuth(jsonPath);
       if (!result.success) {
 	console.log(`Info: No style sheet meta data found at ${jsonPath}. Error was: ${result.error}\nUsing defaults`);
 	result.content = '{}';
       }
 
       try {
-	json = JSON.parse(result.content);
+	const decoder = new TextDecoder();
+	const text = decoder.decode(result.content);
+	json = JSON.parse(text);
       } catch (err) {
 	window.alert(`Found a JSON file with layouts and transitions,\n\n${jsonPath}\n\nbut it has an error:\n\n${err.message}\n\nUsing defaults instead.`);
       }
@@ -1423,8 +1430,125 @@ class SlideEditor {
   // getOrigin -- get the "origin" (protocol, host and port) of a path or URL
   getOrigin(url)
   {
-    if (this.isUrl(url)) return new URL(url).origin;
-    return new URL('file://' + url).origin;
+    if (this.isUrl(url)) return URL.parse(url).origin;
+    return URL.parse('file://' + url).origin;
+  }
+
+  // getRealm -- get the realm from a WWW-Authenticate header
+  getRealm(headerValue)
+  {
+    if (!headerValue) return '';
+    const m = headerValue.match(
+      /\bBasic +realm *= *(?:"((?:\\.|[^"\\])*)"|([-!#$%&'*+.^_`|~0-9a-z]+))/i);
+    if (!m) return '';
+    else if (m[2]) return m[2];
+    else return m[1].replaceAll(/\\(.)/g, '$1');
+  }
+
+  // writeFileWithAuth -- write a file, handle authentication if needed
+  async writeFileWithAuth(url, content)
+  {
+    let result;
+
+    console.log(`writeFileWithAuth(${url},...)`);
+    result = await window.electronAPI.writeFile(url, content);
+    console.log(`- ${JSON.stringify(result)}`);
+
+    // If authentication is requested, see if we have a password or
+    // ask the user for one. Repeat until we have a password that
+    // works or the user cancelled the password dialog.
+    while (result.status === 401) {
+      const url = result.url;
+      const origin = this.getOrigin(url);
+      const realm = this.getRealm(result.authenticate);
+      const key = origin + '/' + realm;
+      let auth = this.auths.get(key);
+      if (!auth) {		// We don't have a password, ask the user
+	const { promise, resolve } = Promise.withResolvers();
+	this.openPasswordDialog(url, realm, resolve);
+	auth = await promise;
+      }
+      if (!auth) {		// User cancelled the password dialog
+	console.log(`- Cancelled`);
+	result = {success: false, status: 0, error: 'Cancelled'}
+      } else {			// Try with the password
+	console.log(`- Trying new authentication ${auth.substring(0, 5)}...`);
+	result = await window.electronAPI.writeFile(url, content, auth);
+	console.log(`- ${JSON.stringify(result)}`);
+	// If the password worked, remember it, if not, forget it. (It
+	// may already have been stored or deleted, but that is OK.)
+	if (result.success) this.auths.set(key, auth);
+	else this.auths.delete(key);
+      }
+    }
+
+    // Report any error.
+    if (!result.success) alert(`Error writing ${url}: ${result.error}`);
+
+    return result;
+  }
+
+  // readFileWithAuth -- download a file, handle authentication if needed
+  async readFileWithAuth(url)
+  {
+    let result;
+
+    console.log(`readFileWithAuth(${url},...)`);
+    result = await window.electronAPI.readFile(url);
+    console.log(`- ${JSON.stringify(result)}`);
+
+    // If authentication is requested, see if we have a password or
+    // ask the user for one. Repeat until we have the password works
+    // or the user cancels the password dialog.
+    while (result.status === 401) {
+      const url = result.url;
+      const origin = this.getOrigin(url);
+      const realm = this.getRealm(result.authenticate);
+      const key = origin +'/'+ realm;
+      let auth = this.auths.get(key);
+      if (!auth) {		// We don't have a stored passw, ask the user
+	const {promise, resolve} = Promise.withResolvers();
+	this.openPasswordDialog(url, realm, resolve);
+	auth = await promise;
+      }
+      if (!auth) {		// User cancelled the password dialog
+	console.log(`- Cancelled`);
+	result = { success: false, status: 0, error: 'Cancelled' };
+      } else {			// Try with this password
+	console.log(`- Trying new authentication ${auth.substring(0, 5)}...`);
+	result = await window.electronAPI.readFile(url, auth);
+	console.log(`- ${JSON.stringify(result)}`);
+        // If the password worked, remember it. If not, forget it. (It
+	// may already have been entered or deleted, but that is OK.)
+	if (result.success) this.auths.set(key, auth);
+	else this.auths.delete(key);
+      }
+    }
+
+    return result;
+  }
+
+  // makeFileName -- make a unique path from an old filename and a directory
+  makeFileName(oldName, dir, newNames, uniqueNames)
+  {
+    // The dir ends in '/'.
+    // Check if we already made a name previously and, if so, return it.
+    if (newNames.get(oldName)) return newNames.get(oldName);
+
+    // As a first try, concatenate the dir with the old base name.
+    const baseName = URL.parse(oldName, 'file:///').pathname.replace(/.*\//, '');
+    let fullName = dir + baseName;
+
+    // If that name is already used, try prefixing the base name with
+    // a number, until we have an unused name.
+    let n = 0;
+    while (uniqueNames.has(fullName)) fullName = dir + n++ + baseName;
+
+    // Remember this mapping of old to new names.
+    newNames.set(oldName, fullName);
+    uniqueNames.add(fullName);
+
+    return fullName;
   }
 
   // writeToFile -- save the current document to the named file or URL
@@ -1433,9 +1557,6 @@ class SlideEditor {
     // filePath is a URL (which may be a "file:" URL).
     this.updateCurrentSlideContent();
 
-    const origin = this.getOrigin(filePath);
-    const auth = this.auths.get(origin);
-
     // Create a temporary copy of the slide deck (with only the data
     // needed for generating an HTML file.)
     const newDoc = {};
@@ -1443,79 +1564,73 @@ class SlideEditor {
     newDoc.currentFilePath = filePath;
 
     if (newDoc.currentFilePath === this.currentFilePath) {
-      // Saving to same location as last read of save. No need to
+      // Saving to same location as last read or save. No need to
       // adjust links.
-    } else if (this.isUrl(newDoc.currentFilePath)) {
+    } else if (!this.isLocal(newDoc.currentFilePath)) {
       // If we are saving to the web, we need to upload all local
       // resources and rewrite their URLs.
-      // TO DO: Handle srcset attributes.
+      // TO DO: Handle srcset and other URL-values attributes.
       const newNames = new Map();
       const uniqueNames = new Set();
-      const fileUrl = new URL(filePath);
+      const fileUrl = URL.parse(filePath);
+      if (!fileUrl) {alert(`Error parsing the URL ${filePath}`); return}
       const relUploadDir = fileUrl.pathname.replace(/^.*\//, '').replace(
        	/\.html?$/i, '') + '-files/';
-      const absUploadDir = new URL(relUploadDir, fileUrl).href;
+      const absUploadDir = URL.parse(relUploadDir, fileUrl).href;
+      if (!absUploadDir) {alert(`Bug? ${relUploadDir}`); return}
 
       const oldBase = this.currentFilePath;
       const newBase = newDoc.currentFilePath;
 
-      if (!this.isUrl(this.cssUrl)) {
-	// TO DO: upload the style sheet
+      const absOldCssUrl = this.absolute(this.cssUrl, oldBase);
+      let newCssUrl;
+      if (this.isLocal(absOldCssUrl)) {
+	// The style sheet is local. We need to upload it.
+	const absNewCssUrl = this.makeFileName(absOldCssUrl, absUploadDir,
+	  newNames, uniqueNames);
+	const readResult = await this.readFileWithAuth(absOldCssUrl);
+	if (!readResult.success) return;
+	const writeResult = await this.writeFileWithAuth(absNewCssUrl,
+	  readResult.content);
+	if (!writeResult) return;
+	newCssUrl = this.relative(newBase, absNewCssUrl);
       } else {
-	newDoc.cssUrl = this.rewritePath(newDoc.cssUrl, oldBase, newBase);
+	// The style sheet is on the web. Just make its URL relative.
+	newCssUrl = this.relative(newBase, this.absolute(absOldCssUrl,oldBase));
       }
+      newDoc.cssUrl = newCssUrl;
 
-      for (const slide of newDoc.slides)
-	slide.content = slide.content.replaceAll(
-	  /(<[^>]*\bsrc\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))/ig,
-	  (match, tag, dquoted, squoted, unquoted) => {
-	    const old = this.absolute(dquoted ?? squoted ?? unquoted, oldBase);
-	    if (!this.isUrl(old)) {
-	      // TO DO: Upload the resource
-	    } else {
-	      if (dquoted)
-		return `${tag}"${this.rewritePath(dquoted, oldBase, newBase)}"`;
-	      else if (squoted)
-		return `${tag}'${this.rewritePath(squoted, oldBase, newBase)}'`;
-	      else
-		return `${tag}${this.rewritePath(unquoted, oldBase, newBase)}`;
-	    }
-	  });
-
-      // for (resource of resources) {
-      // 	const abspath = await this.makeAbsolute(
-      // 	  resource.getAttribute('src') ?? resource.getAttribute('href'),
-      // 	  this.currentFilePath);
-      // 	if (this.isUrl(abspath)) continue;
-      // 	const content = await window.electronAPI.readFile(abspath);
-      // 	if (!content.success) continue;
-      // 	const baseName = abspath.replace(/^.*[\/\\]/, '');
-      // 	let relUrl = newNames.get(abspath);
-      // 	if (!relUrl) {
-      // 	  // We haven't uploaded this resource yet.
-      // 	  // Make relUrl a unique name for the resource.
-      // 	  let n = 0;
-      // 	  relUrl = relUploadDir + baseName;
-      // 	  while (uniqueNames.has(relUrl)) relUrl = relUploadDir + n++ + relUrl;
-      // 	  uniqueNames.add(relUrl);
-      // 	  newNames.set(abspath, relUrl);
-      // 	  const absUrl = new URL(relUrl, fileUrl).href;
-      // 	  const mediaType = await window.electronAPI.getMediaType(abspath) ||
-      // 		'application/octet-stream';
-      // 	  const result = await window.electronAPI.writeFile(absUrl,
-      // 	    content.content, mediaType, auth);
-      // 	  if (result.status === 401) {
-      // 	    this.openPasswordDialog(result.url);
-      // 	    return false; // Abort saving the document and its resources
-      // 	  } else if (!result.success) {
-      // 	    alert(`Error uploading file ${baseName}: ${result.error}`);
-      // 	    return false;
-      // 	  }
-      // 	}
-      // 	// Rewrite src or href attribute.
-      // 	if (resource.src) resource.setAttribute('src', relUrl);
-      // 	else resource.setAttribute('href', relUrl);
-      // }
+      const parser = new DOMParser;
+      for (const slide of newDoc.slides) {
+	// Look for all src attributes, upload their target, if
+	// needed, and update the attribute.
+	let html = '<!DOCTYPE html><base href=""><body>' + slide.content;
+	const doc = parser.parseFromString(html, 'text/html');
+	doc.getElementsByTagName('base')[0].href = oldBase;
+	for (const e of doc.querySelectorAll('[src]')) {
+	  const old = e.src;
+	  let relNewUrl;
+	  if (this.isLocal(old)) {
+	    // The resource is local. We need to upload it.
+	    const absNewUrl = this.makeFileName(old, absUploadDir,
+	      newNames, uniqueNames);
+	    const readResult = await this.readFileWithAuth(old);
+	    if (!readResult.success) return; // TO DO: Give more info?
+	    const writeResult = await this.writeFileWithAuth(absNewUrl,
+	      readResult.content);
+	    if (!writeResult.success) return;
+	    relNewUrl = this.relative(newBase, absNewUrl);
+	  } else {
+	    // The resource is on the web. Just make its URL relative.
+	    relNewUrl = this.relative(newBase, old);
+	  }
+	  e.setAttribute('src', relNewUrl);
+	}
+	for (const e of doc.querySelectorAll('a[href]'))
+	  e.setAttribute('href', this.relative(newBase, e.href));
+	// Update the text now that the links have been rewritten.
+	slide.content = doc.body.innerHTML;
+      }
     } else {
       // We are writing to a local file. Need to rewrite
       // relative path name of images, style sheets, etc.
@@ -1523,24 +1638,25 @@ class SlideEditor {
       // TO DO: Save (some) remote resources to local files?
       const oldBase = this.currentFilePath;
       const newBase = newDoc.currentFilePath;
-      newDoc.cssUrl = this.rewritePath(newDoc.cssUrl, oldBase, newBase);
-      for (const slide of newDoc.slides)
-	slide.content = slide.content.replaceAll(
-	  /(<[^>]*\bsrc\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))/ig,
-	  (match, tag, dquoted, squoted, unquoted) => {
-	    if (dquoted)
-	      return `${tag}"${this.rewritePath(dquoted, oldBase, newBase)}"`;
-	    else if (squoted)
-	      return `${tag}'${this.rewritePath(squoted, oldBase, newBase)}'`;
-	    else
-	      return `${tag}${this.rewritePath(unquoted, oldBase, newBase)}`;
-	  });
+      newDoc.cssUrl = this.relative(newBase,
+	this.absolute(this.cssUrl, oldBase));
+      const parser = new DOMParser;
+      for (const slide of newDoc.slides) {
+	let html = '<!DOCTYPE html><base href=""><body>' + slide.content;
+	const doc = parser.parseFromString(html, 'text/html');
+	doc.getElementsByTagName('base')[0].href = oldBase;
+	for (const e of doc.querySelectorAll('[src]'))
+	  e.src = this.relative(newBase, e.src);
+	for (const e of doc.querySelectorAll('a[href]'))
+	  e.href = this.relative(newBase, e.href);
+	// Update the text now that the links have been rewritten.
+	slide.content = doc.body.innerHTML;
+      }
     }
 
     // Now save the document itself.
     const html = await this.generateHtml(newDoc);
-    const result = await window.electronAPI.writeFile(filePath, html,
-      'text/html', auth);
+    const result = await this.writeFileWithAuth(filePath, html);
 
     if (result.success) {
       this.copySlideDeckData(newDoc, this);
@@ -1550,33 +1666,23 @@ class SlideEditor {
       if (baseTag && realfile) baseTag.setAttribute('href', realfile);
       this.setEdited(false);
       alert('File saved successfully!');
-      return true;
-    } else if (result.status === 401) {
-      const textInput = document.getElementById('save-as-url');
-      textInput.value = result.url; // It may have been redirected
-      this.nextAction = 'save';
-      this.openPasswordDialog(result.url);
-      return false;
-    } else {
-      alert('Error saving file: ' + result.error);
-      return false;
     }
   }
 
   // openPasswordDialog -- show the password dialog
-  openPasswordDialog(filePath)
+  openPasswordDialog(filePath, realm, nextAction)
   {
     if (!this.editor || this.isHtmlView) return;
+    this.nextAction = nextAction;
     const dialog = document.getElementById('password-dialog');
-    const label = document.getElementById('password-dialog-label');
+    const urlLabel = document.getElementById('password-dialog-url');
+    const realmLabel = document.getElementById('password-dialog-realm');
     const username = document.getElementById('password-dialog-username-input');
     const password = document.getElementById('password-dialog-password-input');
     const origin = this.getOrigin(filePath);
     const auth = this.auths.get(origin);
-    const colon = auth ? auth.indexOf(':') : -1;
-    username.value = colon >= 0 ? auth.substring(0, colon) : '';
-    password.value = colon >= 0 ? auth.substring(colon + 1) : '';
-    label.innerText = filePath;
+    urlLabel.innerText = filePath;
+    realmLabel.innerText = realm;
     dialog.style.display = 'flex';
     username.focus();
   }
@@ -1585,20 +1691,23 @@ class SlideEditor {
   closePasswordDialog()
   {
     document.getElementById('password-dialog').style.display = 'none';
+    this.nextAction(null);
   }
 
   // applyPassword -- use the entered username+password to save the current file
   applyPassword()
   {
-    this.closePasswordDialog();
     const username = document.getElementById('password-dialog-username-input');
     const password = document.getElementById('password-dialog-password-input');
-    const label = document.getElementById('password-dialog-label');
-    const origin = this.getOrigin(label.innerText);
-    this.auths.set(origin, username.value + ':' + password.value);
-    if (this.nextAction === 'save') this.applySaveAs();
-    else if (this.nextAction === 'open') this.applyOpenFile();
-    else console.error(`this.nextAction cannot be ${this.nextAction}`);
+    console.log(`applyPassword() -> ${username.value}:...`);
+    this.nextAction(username.value + ':' + password.value);
+    this.closePasswordDialog();
+  }
+
+  // askPassword -- ask user for a username and password on behalf of the app
+  askPassword(url, realm)
+  {
+    this.openPasswordDialog(url, realm, window.electronAPI.replyPassword);
   }
 
   async playSlides()
@@ -1708,13 +1817,13 @@ class SlideEditor {
 
   async fileOpened(data)
   {
-    console.log(`fileOpened({${data.path},...})`);
+    console.log(`fileOpened({${data.url},...})`);
     if (this.hasUnsavedChanges
 	&& !confirm('Open a file? Unsaved changes will be lost.'))
       return;
 
-    const { path, content } = data;
-    const realfile = await this.makeAbsolute(path);
+    const { url, content } = data;
+    const realfile = await this.makeAbsolute(url);
     console.log(`  realfile = ${realfile}`);
 
     // Update base URL in iframe for relative paths
@@ -1725,7 +1834,9 @@ class SlideEditor {
     }
 
     this.currentFilePath = realfile;
-    await this.parseHtml(content);
+    const decoder = new TextDecoder();
+    const html = decoder.decode(content);
+    await this.parseHtml(html);
     console.log(`  parsed ${this.slides.length} slides`);
     this.setEdited(false);
     this.updateSlidesList();
@@ -2514,7 +2625,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (file.name.endsWith('.html')) {
         const content = await file.text();
         const filePath = file.path; // Electron provides the file path
-        editorInstance.fileOpened({ path: filePath, content: content });
+        editorInstance.fileOpened({ url: filePath, content: content });
       } else {
         alert('Please drop an HTML file');
       }
