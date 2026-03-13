@@ -43,12 +43,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onZoomOut: cb => ipcRenderer.on('r-zoom-out', cb),
   onZoomReset: cb => ipcRenderer.on('r-zoom-reset', cb),
   onStyleHelp: cb => ipcRenderer.on('r-style-help', cb),
+  onAskPassword: cb => ipcRenderer.on('r-ask-password', cb),
 
   proceedWithClose: () => ipcRenderer.send('a-proceed-with-close'),
   cancelClose: () => ipcRenderer.send('a-cancel-close'),
   saveFileDialog: (currentPath) => ipcRenderer.invoke('a-save-file-dialog',
     currentPath),
-  readFile: (filePath) => ipcRenderer.invoke('a-read-file', filePath),
+  readFile: (path, auth) => ipcRenderer.invoke('a-read-file', path, auth),
   writeFile: (filePath, content, auth) => ipcRenderer.invoke('a-write-file',
     filePath, content, auth),
   openFile: () => ipcRenderer.invoke('a-open-file'),
@@ -72,5 +73,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showUndoRedo: (canUndo, canRedo) => ipcRenderer.send('a-show-undo-redo',
     canUndo, canRedo),
   setTitle: (title) => ipcRenderer.send('a-set-title', title),
-  getMediaType: (path) => ipcRenderer.invoke('a-get-media-type', path)
+  replyPassword: (auth) => ipcRenderer.send('a-reply-password', auth)
 });
