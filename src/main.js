@@ -256,9 +256,9 @@ const template = [
 
 async function openFileByPath(filePath) {
   try {
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const content = fs.readFileSync(filePath);
     mainWindow.webContents.send('r-file-opened',
-      { path: filePath, content: content });
+      { url: filePath, content: content });
   } catch (err) {
     dialog.showErrorBox('Error', `Failed to open file: ${err.message}`);
   }
@@ -364,10 +364,12 @@ async function saveFileDialog (event, currentPath)
   return null;
 }
 
-async function writeFile(event, filePath, content, mediaType, auth = null)
+async function writeFile(event, filePath, content, auth = null)
 {
   if (filePath.match(/^[a-z]+:/i)) {
     try {
+      const mediaType = getMediaType(filePath) || 'application/octet-stream';
+      // dialog.showErrorBox('Info', `writeFile(..., ${filePath},...) using ${mediaType}`);
       const options = {
 	body: content,
 	credentials: 'include',
@@ -378,16 +380,17 @@ async function writeFile(event, filePath, content, mediaType, auth = null)
 	options.headers['Authorization'] = 'Basic ' + base64;
       }
       const response = await fetch(filePath, options);
-      const body = await response.text();
+      const body = await response.bytes();
       return { success: response.ok, url: response.url, content: body,
-	status: response.status, error: response.statusText };
+	status: response.status, error: response.statusText,
+	authenticate: response.headers.get('WWW-Authenticate') };
     } catch (err) {
       return { success: false, error: err.message };
     }
   } else {
     try {
       const path = filePath.replace(/^file:\/\//i, '');
-      fs.writeFileSync(path, content, 'utf-8');
+      fs.writeFileSync(path, content);
       return { success: true, url: path };
     } catch (err) {
       return { success: false, url: path, error: err.message };
@@ -398,24 +401,27 @@ async function writeFile(event, filePath, content, mediaType, auth = null)
 async function readFile(event, filePath, auth = null)
 {
   if (filePath.match(/^[a-z][a-z]+:/i) && !filePath.match(/^file:/i)) {
+    // dialog.showErrorBox('Info', `readFile(..., ${filePath}, ${auth})`);
     try {
-      const url = filePath.match(/^[a-z]+:/i) ? filePath : 'file://' + filePath;
       const options = { credentials: 'include' };
       if (auth) {
 	const base64 = Buffer.from(auth, 'utf8').toString('base64');
-	options.headers['Authorization'] = 'Basic ' + base64;
+	options.headers = { 'Authorization': 'Basic ' + base64 };
+	// dialog.showErrorBox('Info', `${options.headers['Authorization']}`);
       }
-      const response = await fetch(url, options);
-      const body = await response.text();
+      const response = await fetch(filePath, options);
+      const body = await response.bytes();
       return { success: response.ok, url: response.url, content: body,
-	status: response.status, error: response.statusText };
+	type: response.headers.get('Content-Type'),
+	status: response.status, error: response.statusText,
+	authenticate: response.headers.get('WWW-Authenticate') };
     } catch (err) {
       return { success: false, error: err.message};
     }
   } else {
     try {
       const path = filePath.replace(/^file:\/\//i, '');
-      const body = fs.readFileSync(path, 'utf-8');
+      const body = fs.readFileSync(path);
       return { success: true, url: filePath, content: body };
     } catch (err) {
       // throw new Error(`Failed to read file: ${err.message}`);
@@ -680,7 +686,6 @@ ipcMain.handle('a-get-real-path', getRealPath);
 ipcMain.handle('a-open-in-browser', openInBrowser);
 ipcMain.handle('a-update-layout-and-transitions-menus',
   updateLayoutAndTransitionsMenus);
-ipcMain.handle('a-get-media-type', getMediaType);
 ipcMain.on('a-set-clear', setClear);
 ipcMain.on('a-set-textfit', setTextfit);
 ipcMain.on('a-show-hide-clear', showHideClear);
@@ -689,6 +694,20 @@ ipcMain.on('a-proceed-with-close', proceedWithClose);
 ipcMain.on('a-cancel-close', cancelClose);
 
 app.whenReady().then(() => createWindow());
+
+app.on('login', (event, webContents, details, authInfo, callback) => {
+  event.preventDefault();
+  mainWindow.send('r-ask-password', details.url, authInfo.realm);
+  const { promise, resolve } = Promise.withResolvers();
+  ipcMain.once('a-reply-password', (event, auth) => resolve(auth));
+  promise.then(auth => {
+    // dialog.showErrorBox('Info', `Got auth ${auth}`);
+    const colon = auth ? auth.indexOf(':') : -1;
+    const username = colon >= 0 ? auth.substring(0, colon) : '';
+    const password = colon >= 0 ? auth.substring(colon + 1) : '';
+    callback(username, password);
+  });
+});
 
 // Handle file open from drag and drop or double-click
 app.on('open-file', (event, filePath) => {
