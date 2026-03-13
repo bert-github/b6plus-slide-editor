@@ -173,7 +173,7 @@
           <button id="close-stylesheet-dialog" class="close-button">✕</button>
         </div>
         <div>
-          <label for="stylesheet-url"">CSS URL or file path:</label>
+          <label for="stylesheet-url">CSS URL or file path:</label>
           <input type="text" id="stylesheet-url" placeholder="https://example.com/styles.css or /path/to/styles.css">
           <button id="browse-stylesheet" title="Browse for local CSS file">📁 Browse...</button>
         </div>
@@ -283,6 +283,7 @@
     </div>
 
     <!-- Password dialog -->
+    <!-- TO DO: A button to make the password visible -->
     <div id="password-dialog" class="modal" style="display: none">
       <div class="modal-content">
 	<div class="modal-header">
@@ -290,7 +291,8 @@
 	  <button id="close-password-dialog" class="close-button">✕</button>
 	</div>
 	<div>
-	  <p>URL: <span id="password-dialog-label"></span></p>
+	  <p>URL: <span id="password-dialog-url"></span></p>
+	  <p>Realm: <span id="password-dialog-realm"></span></p>
 	  <label for="password-dialog-username-input">User name:</label>
           <input type="text" id="password-dialog-username-input">
 	  <label for="password-dialog-password-input">Password:</label>
