@@ -44,14 +44,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onZoomReset: cb => ipcRenderer.on('r-zoom-reset', cb),
   onStyleHelp: cb => ipcRenderer.on('r-style-help', cb),
   onAskPassword: cb => ipcRenderer.on('r-ask-password', cb),
+  onFileToOpen: cb => ipcRenderer.on('r-file-to-open', cb),
 
   proceedWithClose: () => ipcRenderer.send('a-proceed-with-close'),
   cancelClose: () => ipcRenderer.send('a-cancel-close'),
   saveFileDialog: (currentPath) => ipcRenderer.invoke('a-save-file-dialog',
     currentPath),
   readFile: (path, auth) => ipcRenderer.invoke('a-read-file', path, auth),
-  writeFile: (filePath, content, auth) => ipcRenderer.invoke('a-write-file',
-    filePath, content, auth),
+  writeFile: (filePath, body, auth) => ipcRenderer.invoke('a-write-file',
+    filePath, body, auth),
   openFile: () => ipcRenderer.invoke('a-open-file'),
   selectCssFile: () => ipcRenderer.invoke('a-select-css-file'),
   selectImageFile: () => ipcRenderer.invoke('a-select-image-file'),
@@ -61,7 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   makeRelativePath: (fromPath, toPath) => ipcRenderer.invoke(
     'a-make-relative-path', fromPath, toPath),
   getTempFilePath: () => ipcRenderer.invoke('a-get-temp-file-path'),
-  writeTempFile: (content) => ipcRenderer.invoke('a-write-temp-file', content),
+  writeTempFile: (body) => ipcRenderer.invoke('a-write-temp-file', body),
   getRealPath: (path) => ipcRenderer.invoke('a-get-real-path', path),
   updateLayoutAndTransitionsMenus: (json) => ipcRenderer.invoke(
     'a-update-layout-and-transitions-menus', json),
