@@ -254,14 +254,10 @@ const template = [
     ] }
 ];
 
-async function openFileByPath(filePath) {
-  try {
-    const content = fs.readFileSync(filePath);
-    mainWindow.webContents.send('r-file-opened',
-      { url: filePath, content: content });
-  } catch (err) {
-    dialog.showErrorBox('Error', `Failed to open file: ${err.message}`);
-  }
+async function openFileByPath(filePath)
+{
+  console.log(`* openFileByPath ${filePath}`);
+  mainWindow.webContents.send('r-file-to-open', filePath);
 }
 
 function createWindow()
@@ -288,6 +284,8 @@ function createWindow()
   });
 
   // Open file from command line if provided
+  // process.argv.forEach((a, i) => console.log(`argv[${i}] = ${a}`));
+  console.log(...process.argv);
   let fileToOpen = process.argv.find(arg => arg.endsWith('.html') && !arg.includes('index.html'));
   if (fileToOpen) {
     // Electron changes the working directory as if with "cd -P ." (or
@@ -295,7 +293,8 @@ function createWindow()
     // current directory, a relative path in the command line argument
     // will be wrong. Hopefully, there is a PWD environment variable
     // that holds the original working directory.
-    fileToOpen = path.resolve(process.env.PWD, fileToOpen);
+    if (!fileToOpen.match(/^[a-z][a-z]+:/i))
+      fileToOpen = path.resolve(process.env.PWD, fileToOpen);
     mainWindow.webContents.on('did-finish-load', () => {
       openFileByPath(fileToOpen);
     });
@@ -366,7 +365,8 @@ async function saveFileDialog (event, currentPath)
 
 async function writeFile(event, filePath, content, auth = null)
 {
-  if (filePath.match(/^[a-z]+:/i)) {
+  console.log(`* writeFile ${filePath} (${content.length} bytes) ${auth ? 'with' : 'no'} auth`);
+  if (filePath.match(/^[a-z]+:/i) && !filePath.match(/^file:/i)) {
     try {
       const mediaType = getMediaType(filePath) || 'application/octet-stream';
       // dialog.showErrorBox('Info', `writeFile(..., ${filePath},...) using ${mediaType}`);
@@ -374,25 +374,34 @@ async function writeFile(event, filePath, content, auth = null)
 	body: content,
 	credentials: 'include',
 	method: 'PUT',
-	headers: { 'Content-Type': mediaType } };
+	headers: { 'Content-Type': mediaType,
+	  // It seems Jigsaw closes the connection, but Node.js's
+	  // fetch() expects it to be still open and then fails with
+	  // "fetch failed". So let's tell fetch that the connection
+	  // should be closed:
+	  'Connection': 'close' } };
       if (auth) {
 	const base64 = Buffer.from(auth, 'utf8').toString('base64');
 	options.headers['Authorization'] = 'Basic ' + base64;
       }
       const response = await fetch(filePath, options);
-      const body = await response.bytes();
-      return { success: response.ok, url: response.url, content: body,
+      const body = await response.text();
+      console.log(`  -> ${response.status} ${response.status !== 401 ? body : ''}`);
+      return { success: response.ok, url: response.url, body: body,
 	status: response.status, error: response.statusText,
 	authenticate: response.headers.get('WWW-Authenticate') };
     } catch (err) {
+      console.log(`  -> error: ${err.message}`);
       return { success: false, error: err.message };
     }
   } else {
     try {
       const path = filePath.replace(/^file:\/\//i, '');
       fs.writeFileSync(path, content);
+      console.log(`  -> success`);
       return { success: true, url: path };
     } catch (err) {
+      console.log(`  -> error: ${err.message}`);
       return { success: false, url: path, error: err.message };
     }
   }
@@ -400,6 +409,7 @@ async function writeFile(event, filePath, content, auth = null)
 
 async function readFile(event, filePath, auth = null)
 {
+  console.log(`* readFile ${filePath} ${auth ? 'with' : 'no'} auth`);
   if (filePath.match(/^[a-z][a-z]+:/i) && !filePath.match(/^file:/i)) {
     // dialog.showErrorBox('Info', `readFile(..., ${filePath}, ${auth})`);
     try {
@@ -411,20 +421,24 @@ async function readFile(event, filePath, auth = null)
       }
       const response = await fetch(filePath, options);
       const body = await response.bytes();
-      return { success: response.ok, url: response.url, content: body,
+      console.log(`  -> (${body.length} bytes) -> ${response.status}`);
+      return { success: response.ok, url: response.url, body: body,
 	type: response.headers.get('Content-Type'),
 	status: response.status, error: response.statusText,
 	authenticate: response.headers.get('WWW-Authenticate') };
     } catch (err) {
+      console.log(`  -> error: ${err.message}`);
       return { success: false, error: err.message};
     }
   } else {
     try {
       const path = filePath.replace(/^file:\/\//i, '');
       const body = fs.readFileSync(path);
-      return { success: true, url: filePath, content: body };
+      console.log(`  -> (${body.length} bytes)`);
+      return { success: true, url: filePath, body: body };
     } catch (err) {
       // throw new Error(`Failed to read file: ${err.message}`);
+      console.log(`  -> error: ${err.message}`);
       return { success: false, error: err.message };
     }
   }
