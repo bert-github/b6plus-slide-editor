@@ -146,12 +146,14 @@
 
         <div id="status-bar">
           <div id="element-path"></div>
-        </div>
+	  <div id="notifications" style="display: none">
+	    <div id="notifications-text"></div>
+	  </div>
       </div>
     </div>
 
     <!-- Custom CSS Modal -->
-    <div id="css-modal" class="modal" style="display: none;">
+    <dialog id="css-modal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3>Custom CSS</h3>
@@ -163,10 +165,10 @@
           <button id="cancel-custom-css">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Stylesheet Dialog -->
-    <div id="stylesheet-dialog" class="modal" style="display: none;">
+    <dialog id="stylesheet-dialog" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3>Change Style Sheet</h3>
@@ -182,10 +184,10 @@
           <button id="cancel-stylesheet">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Class Editor Dialog -->
-    <div id="class-dialog" class="modal" style="display: none;">
+    <dialog id="class-dialog" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3>Edit Class Attribute</h3>
@@ -202,10 +204,10 @@
           <button id="cancel-class">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Link Dialog -->
-    <div id="link-dialog" class="modal" style="display: none;">
+    <dialog id="link-dialog" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3>Insert/Edit Link</h3>
@@ -221,10 +223,10 @@
           <button id="cancel-link">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Image Dialog -->
-    <div id="image-dialog" class="modal" style="display: none;">
+    <dialog id="image-dialog" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3>Insert Image</h3>
@@ -242,10 +244,10 @@
           <button id="cancel-image">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Open File dialog -->
-    <div id="open-file-dialog" class="modal" style="display: none;">
+    <dialog id="open-file-dialog" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3>Open a Slide Deck</h3>
@@ -261,10 +263,10 @@
           <button id="cancel-open-file">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Save As Dialog -->
-    <div id="save-as-dialog" class="modal" style="display: none;">
+    <dialog id="save-as-dialog" class="modal">
       <div class="modal-content">
         <div class="modal-header">
           <h3>Save Slide Deck</h3>
@@ -280,11 +282,11 @@
           <button id="cancel-save-as">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <!-- Password dialog -->
     <!-- TO DO: A button to make the password visible -->
-    <div id="password-dialog" class="modal" style="display: none">
+    <dialog id="password-dialog" class="modal">
       <div class="modal-content">
 	<div class="modal-header">
 	  <h3>User name and password required</h3>
@@ -303,7 +305,7 @@
           <button id="cancel-password">Cancel</button>
         </div>
       </div>
-    </div>
+    </dialog>
 
     <script src="editor.js"></script>
   </body>
