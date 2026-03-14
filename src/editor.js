@@ -109,6 +109,12 @@ class SlideEditor {
     return u && (u.match(/^file:/i) || !u.match(/^[a-z][a-z]+:/i));
   }
 
+  // isAbsolute -- true if the path is a URL or a path that starts with "/"
+  isAbsolute(u)
+  {
+    return this.isUrl(u) || u.match(/^[\/\\]/);
+  }
+
   // makeAbsolute -- make a relative path an absolute URL or a real path
   async makeAbsolute(urlRef, base = null)
   {
@@ -151,7 +157,7 @@ class SlideEditor {
     return r;
   }
 
-  // setEdited -- flag the current document as edited or not and update the window title
+  // setEdited -- flag current document as (not) edited and update window title
   setEdited(edited = true)
   {
     this.hasUnsavedChanges = edited;
@@ -486,8 +492,8 @@ class SlideEditor {
       container = container.parentNode.parentNode;
     else if (container.nodeType === Node.TEXT_NODE
 	|| container === this.previousSelectedElement)
-    // If it's a text node, or if it is the element that we just
-    // expanded to, get its parent instead.
+      // If it's a text node, or if it is the element that we just
+      // expanded to, get its parent instead.
       container = container.parentNode;
 
     // We don't expand to the wrapper element.
@@ -505,7 +511,6 @@ class SlideEditor {
     window.electronAPI.onOpenFile(() => this.openOpenFileDialog());
     window.electronAPI.onSaveFile(() => this.saveFile());
     window.electronAPI.onSaveAs(() => this.openSaveAsDialog());
-    window.electronAPI.onFileOpened((event, data) => this.fileOpened(data));
 
     window.electronAPI.onAddSlide(() => this.addSlide());
     window.electronAPI.onAddNotes(() => this.addNotes());
@@ -554,6 +559,8 @@ class SlideEditor {
 
     window.electronAPI.onAskPassword((event, url, realm) => this.askPassword(
       url, realm));
+
+    window.electronAPI.onFileToOpen((event, path) => this.fileToOpen(path));
 
     // Toolbar buttons
     document.getElementById('play-slides').addEventListener('click', () => this.playSlides());
@@ -1066,14 +1073,14 @@ class SlideEditor {
   {
     document.getElementById('stylesheet-url').value =
       this.cssUrl?.replace(/^file:\/\//i, '') || '';
-    document.getElementById('stylesheet-dialog').style.display = 'flex';
+    document.getElementById('stylesheet-dialog').showModal();
     document.getElementById('stylesheet-url').focus();
   }
 
   // closeStylesheetDialog -- close the dialog to enter a style sheet URL
   closeStylesheetDialog()
   {
-    document.getElementById('stylesheet-dialog').style.display = 'none';
+    document.getElementById('stylesheet-dialog').close();
   }
 
   // browseStylesheet -- get the result of a file selection dialog and store it
@@ -1099,14 +1106,14 @@ class SlideEditor {
   {
     document.getElementById('open-file-url').value =
       this.currentFilePath?.replace(/^file:\/\//i, '') || '';
-    document.getElementById('open-file-dialog').style.display = 'flex';
+    document.getElementById('open-file-dialog').showModal();
     document.getElementById('open-file-url').focus();
   }
 
   // closeOpenFileDialog -- close the dialog to open a file
   closeOpenFileDialog()
   {
-    document.getElementById('open-file-dialog').style.display = 'none';
+    document.getElementById('open-file-dialog').close();
   }
 
   // browseOpenFile -- get the result of a file selection dialog and store it
@@ -1116,7 +1123,7 @@ class SlideEditor {
     if (filePath) document.getElementById('open-file-url').value = filePath;
   }
 
-  // applyOpenFile -- handle the closing of the style sheet URL dialog
+  // applyOpenFile -- handle the closing of the open-file dialog
   async applyOpenFile()
   {
     const filePath = document.getElementById('open-file-url').value;
@@ -1126,7 +1133,7 @@ class SlideEditor {
       console.log(`applyOpenFile: realpath = ${realpath}`);
       const result = await this.readFileWithAuth(realpath);
       if (result.success) {
-	this.fileOpened({ url: result.url, content: result.content });
+	this.fileOpened({ url: result.url, body: result.body });
       } else {
 	alert('Error opening file: ' + result.error);
       }
@@ -1136,15 +1143,14 @@ class SlideEditor {
   // openImageDialog -- show the dialog to enter an image URL
   openImageDialog()
   {
-    // document.getElementById('image-url').value = '';
-    document.getElementById('image-dialog').style.display = 'flex';
+    document.getElementById('image-dialog').showModal();
     document.getElementById('image-url').focus();
   }
 
   // closeImageDialog -- close the dialog to enter a style sheet URL
   closeImageDialog()
   {
-    document.getElementById('image-dialog').style.display = 'none';
+    document.getElementById('image-dialog').close();
   }
 
   // browseImage -- get the result of a file selection dialog and store it
@@ -1177,13 +1183,17 @@ class SlideEditor {
       const result = await this.readFileWithAuth(jsonPath);
       if (!result.success) {
 	console.log(`Info: No style sheet meta data found at ${jsonPath}. Error was: ${result.error}\nUsing defaults`);
-	result.content = '{}';
+	result.body = '{}';
       }
 
       try {
-	const decoder = new TextDecoder();
-	const text = decoder.decode(result.content);
-	json = JSON.parse(text);
+	if (typeof result.body === 'string') {
+	  json = JSON.parse(result.body);
+	} else {
+	  const decoder = new TextDecoder();
+	  const text = decoder.decode(result.body);
+	  json = JSON.parse(text);
+	}
       } catch (err) {
 	window.alert(`Found a JSON file with layouts and transitions,\n\n${jsonPath}\n\nbut it has an error:\n\n${err.message}\n\nUsing defaults instead.`);
       }
@@ -1264,13 +1274,13 @@ class SlideEditor {
   openCustomCssModal()
   {
     document.getElementById('custom-css-editor').value = this.customCss;
-    document.getElementById('css-modal').style.display = 'flex';
+    document.getElementById('css-modal').showModal();
   }
 
   // closeCustomCssModal -- handle closing of the cusom CSS dialog
   closeCustomCssModal()
   {
-    document.getElementById('css-modal').style.display = 'none';
+    document.getElementById('css-modal').close();
   }
 
   // saveCustomCss -- handle click on the save button of the custom CSS dialog
@@ -1389,8 +1399,13 @@ class SlideEditor {
   // saveFile -- handle click on "save file" menu item
   async saveFile()
   {
-    if (this.currentFilePath) await this.writeToFile(this.currentFilePath);
-    else await this.openSaveAsDialog();
+
+    if (!this.currentFilePath) {
+      this.openSaveAsDialog();
+    } else {
+      document.getElementById('save-as-url').value = this.currentFilePath;
+      this.applySaveAs();
+    }
   }
 
   // openSaveAsDialog -- show the dialog to save the slides under a new name
@@ -1398,14 +1413,14 @@ class SlideEditor {
   {
     document.getElementById('save-as-url').value =
       this.currentFilePath.replace(/^file:\/\//i, '');
-    document.getElementById('save-as-dialog').style.display = 'flex';
+    document.getElementById('save-as-dialog').showModal();
     document.getElementById('stylesheet-url').focus();
   }
 
   // closeSaveAsDialog -- close the dialog to enter a file name for saving to
   closeSaveAsDialog()
   {
-    document.getElementById('save-as-dialog').style.display = 'none';
+    document.getElementById('save-as-dialog').close();
   }
 
   // browseSaveAs -- get the result of a file selection dialog
@@ -1420,10 +1435,15 @@ class SlideEditor {
   async applySaveAs()
   {
     const filePath = document.getElementById('save-as-url').value;
+    const notifications = document.getElementById('notifications')
+    const notificationsText = document.getElementById('notifications-text')
     this.closeSaveAsDialog();
     if (filePath) {
+      notificationsText.innerText = '…';
+      notifications.style.display = 'flex';
       const realpath = await this.makeAbsolute(filePath);
       await this.writeToFile(realpath);
+      notifications.style.display = 'none';
     }
   }
 
@@ -1446,12 +1466,12 @@ class SlideEditor {
   }
 
   // writeFileWithAuth -- write a file, handle authentication if needed
-  async writeFileWithAuth(url, content)
+  async writeFileWithAuth(url, body)
   {
     let result;
 
     console.log(`writeFileWithAuth(${url},...)`);
-    result = await window.electronAPI.writeFile(url, content);
+    result = await window.electronAPI.writeFile(url, body);
     console.log(`- ${JSON.stringify(result)}`);
 
     // If authentication is requested, see if we have a password or
@@ -1473,7 +1493,7 @@ class SlideEditor {
 	result = {success: false, status: 0, error: 'Cancelled'}
       } else {			// Try with the password
 	console.log(`- Trying new authentication ${auth.substring(0, 5)}...`);
-	result = await window.electronAPI.writeFile(url, content, auth);
+	result = await window.electronAPI.writeFile(url, body, auth);
 	console.log(`- ${JSON.stringify(result)}`);
 	// If the password worked, remember it, if not, forget it. (It
 	// may already have been stored or deleted, but that is OK.)
@@ -1481,9 +1501,6 @@ class SlideEditor {
 	else this.auths.delete(key);
       }
     }
-
-    // Report any error.
-    if (!result.success) alert(`Error writing ${url}: ${result.error}`);
 
     return result;
   }
@@ -1532,7 +1549,7 @@ class SlideEditor {
   makeFileName(oldName, dir, newNames, uniqueNames)
   {
     // The dir ends in '/'.
-    // Check if we already made a name previously and, if so, return it.
+    // Check if we already made a name previously. If so, return it.
     if (newNames.get(oldName)) return newNames.get(oldName);
 
     // As a first try, concatenate the dir with the old base name.
@@ -1551,10 +1568,92 @@ class SlideEditor {
     return fullName;
   }
 
+  // rewriteStyleResources -- rewrite occurrences of url() and save resources
+  async rewriteStyleResources(content, oldBase, newBase, absUploadDir,
+    newNames, uniqueNames)
+  {
+    const notificationsText = document.getElementById('notifications-text')
+    let errorOccurred = false;
+
+    // If the content isn't a string, it is a byte array. We assume it
+    // is UTF-8-encoded text.
+    const decoder = new TextDecoder;
+    const old = typeof content === 'string' ? content : decoder.decode(content);
+
+    const regex = /("(?:[^"]|\\")*")|('(?:[^']|\\')*')|(\/\*(?:[^/]|[^*]\/)*\*\/)|url\(\s*"((?:[^"]|\\")*)"\s*\)|url\(\s*'((?:[^']|\\')*)'\s*\)|url\(\s*([^\s)]+)\s*\)/ig;
+
+    // Find all occurrences of url(...) in the style sheet that do not
+    // occur inside a string or a comment. Check if the resources they
+    // point to need to be uploaded and determine their new URLs. Save
+    // the new URLs in the newNames map.
+    for (const match of old.matchAll(regex)) {
+      const oldUrl = match[4] ?? match[5] ?? match[6];
+      if (!oldUrl) continue;	// Matched a string or comment
+      const absOldUrl = this.absolute(oldUrl, oldBase);
+      if (newNames.has(absOldUrl)) continue; // Already handled
+      if (this.isLocal(absOldUrl) && absUploadDir) {
+	// Need to put the resource online.
+	const absNewUrl = this.makeFileName(absOldUrl, absUploadDir,
+	  newNames, uniqueNames);
+	notificationsText.innerText = 'Reading ' + absOldUrl;
+	const readResult = await this.readFileWithAuth(absOldUrl);
+	if (!readResult.success) {
+	  if (!errorOccurred) {
+	    notificationsText.innerText = readResult.error + ' reading '
+	      + absOldUrl;
+	    alert('Error reading ' + absOldUrl
+		+ '\n(' + readResult.error + ')\n'
+		+ 'Saved style sheet will probably not work');
+	  }
+	  errorOccurred = true;
+	} else {		// Read successfully
+	  notificationsText.innerText = 'Writing ' + absNewUrl;
+	  const writeResult = await this.writeFileWithAuth(absNewUrl,
+	    readResult.body);
+	  if (!writeResult.success) {
+	    if (!errorOccurred) {
+	      notificationsText.innerText = writeResult.error + ' writing '
+		+ absNewUrl;
+	      alert('Error writing ' + absNewUrl
+		  + '\n(' + writeResult.error + ')\n'
+		  + 'Saved style sheet will probably not work');
+	    }
+	    errorOccurred = true;
+	  }
+	}
+	const newUrl = this.relative(newBase, absNewUrl);
+	newNames.set(absOldUrl, newUrl); // Overwrite with relative URL
+      } else if (this.isAbsolute(oldUrl)) {
+	// Resource is a URL or has an absolute path. No need to rewrite.
+	newNames.set(absOldUrl, oldUrl);
+      } else {
+	// Need to rewrite the relative URL
+	newNames.set(absOldUrl, this.relative(newBase, oldAbsUrl));
+      }
+    }
+
+    // Now rewrite all url() in the style sheet to the their new URLs.
+    const newContent = old.replaceAll(regex,
+      (match, dqstring, sqstring, comment, dqurl, squrl, url) => {
+	const oldURL = dqurl ?? squrl ?? url;
+	if (!oldURL) return match;
+	const oldAbsUrl = this.absolute(oldURL, oldBase);
+	const newUrl = newNames.get(oldAbsUrl);
+	if (!newUrl) return match;
+	else if (dqurl) return `url("${newUrl}")`;
+	else if (squrl) return `url('${newUrl}')`;
+	else return `url(${newUrl})`;
+      });
+
+    return errorOccurred ? old : newContent;
+  }
+
   // writeToFile -- save the current document to the named file or URL
   async writeToFile(filePath)
   {
     // filePath is a URL (which may be a "file:" URL).
+    const notificationsText = document.getElementById('notifications-text')
+
     this.updateCurrentSlideContent();
 
     // Create a temporary copy of the slide deck (with only the data
@@ -1588,11 +1687,27 @@ class SlideEditor {
 	// The style sheet is local. We need to upload it.
 	const absNewCssUrl = this.makeFileName(absOldCssUrl, absUploadDir,
 	  newNames, uniqueNames);
+	notificationsText.innerText = 'Reading ' + absOldCssUrl;
 	const readResult = await this.readFileWithAuth(absOldCssUrl);
-	if (!readResult.success) return;
+	if (!readResult.success) {
+	  notificationsText.innerText = readResult.error + ' reading '
+	    + absOldCssUrl;
+	  alert('Error reading ' + absOldCssUrl
+	      + '\n(' + readResult.error + ')\nGiving up');
+	  return;
+	}
+	const styleContent = await this.rewriteStyleResources(readResult.body,
+	  absOldCssUrl, absNewCssUrl, absUploadDir, newNames, uniqueNames);
+	notificationsText.innerText = 'Writing ' + absNewCssUrl;
 	const writeResult = await this.writeFileWithAuth(absNewCssUrl,
-	  readResult.content);
-	if (!writeResult) return;
+	  styleContent);
+	if (!writeResult) {
+	  notificationsText.innerText = writeResult.error + ' writing '
+	    + absNewCssUrl;
+	  alert('Error writing ' + absNewCssUrl
+	      + '\n(' + writeResult.error + ')\nGiving up');
+	  return;
+	}
 	newCssUrl = this.relative(newBase, absNewCssUrl);
       } else {
 	// The style sheet is on the web. Just make its URL relative.
@@ -1614,11 +1729,25 @@ class SlideEditor {
 	    // The resource is local. We need to upload it.
 	    const absNewUrl = this.makeFileName(old, absUploadDir,
 	      newNames, uniqueNames);
+	    notificationsText.innerText = 'Reading ' + old;
 	    const readResult = await this.readFileWithAuth(old);
-	    if (!readResult.success) return; // TO DO: Give more info?
+	    if (!readResult.success) {
+	      notificationsText.innerText = readResult.error + ' reading '
+		+ old;
+	      alert('Error while reading the style sheet (' + readResult.error
+		  + ')\nGiving up');
+	      return;
+	    }
+	    notificationsText.innerText = 'Writing ' + absNewUrl;
 	    const writeResult = await this.writeFileWithAuth(absNewUrl,
-	      readResult.content);
-	    if (!writeResult.success) return;
+	      readResult.body);
+	    if (!writeResult.success) {
+	      notificationsText.innerText = writeResult.error + ' writing '
+		+ absNewUrl;
+	      alert('Error while saving the style sheet (' + writeResult.error
+		  + ')\nGiving up');
+	      return;
+	    }
 	    relNewUrl = this.relative(newBase, absNewUrl);
 	  } else {
 	    // The resource is on the web. Just make its URL relative.
@@ -1655,6 +1784,7 @@ class SlideEditor {
     }
 
     // Now save the document itself.
+    notificationsText.innerText = 'Writing ' + filePath;
     const html = await this.generateHtml(newDoc);
     const result = await this.writeFileWithAuth(filePath, html);
 
@@ -1666,6 +1796,9 @@ class SlideEditor {
       if (baseTag && realfile) baseTag.setAttribute('href', realfile);
       this.setEdited(false);
       alert('File saved successfully!');
+    } else {
+      notificationsText.innerText = result.error + ' writing ' + filePath;
+      alert('Error writing ' + filePath + '\n(' + result.error + ')');
     }
   }
 
@@ -1683,14 +1816,14 @@ class SlideEditor {
     const auth = this.auths.get(origin);
     urlLabel.innerText = filePath;
     realmLabel.innerText = realm;
-    dialog.style.display = 'flex';
+    dialog.showModal();
     username.focus();
   }
 
   // closePasswordDialog -- hide the password dialog
   closePasswordDialog()
   {
-    document.getElementById('password-dialog').style.display = 'none';
+    document.getElementById('password-dialog').close();
     this.nextAction(null);
   }
 
@@ -1756,7 +1889,6 @@ class SlideEditor {
 
     if (this.customCss)
       html += `<style>\n${this.customCss}\n</style>\n`;
-      // html += this.customCss.split('\n').map(line => '        ' + line).join('\n') + '\n';
 
     if (this.includeB6plus) {
       html += '<script src="https://www.w3.org/Talks/Tools/b6plus/b6plus.js"></script>\n';
@@ -1793,7 +1925,6 @@ class SlideEditor {
 
     if (doc.customCss)
       html += `<style>\n${doc.customCss}\n</style>\n`;
-      // html += doc.customCss.split('\n').map(line => '        ' + line).join('\n') + '\n';
 
     if (doc.includeB6plus)
       html += '<script src="https://www.w3.org/Talks/Tools/b6plus/b6plus.js"></script>\n';
@@ -1822,7 +1953,7 @@ class SlideEditor {
 	&& !confirm('Open a file? Unsaved changes will be lost.'))
       return;
 
-    const { url, content } = data;
+    const { url, body } = data;
     const realfile = await this.makeAbsolute(url);
     console.log(`  realfile = ${realfile}`);
 
@@ -1835,12 +1966,19 @@ class SlideEditor {
 
     this.currentFilePath = realfile;
     const decoder = new TextDecoder();
-    const html = decoder.decode(content);
+    const html = decoder.decode(body);
     await this.parseHtml(html);
     console.log(`  parsed ${this.slides.length} slides`);
     this.setEdited(false);
     this.updateSlidesList();
     this.loadCurrentSlide();
+  }
+
+  // fileToOpen -- handle file passed on the command line or drag & dropped
+  fileToOpen(path)
+  {
+    document.getElementById('open-file-url').value = path;
+    this.applyOpenFile();
   }
 
   async parseHtml(html)
@@ -2069,12 +2207,12 @@ class SlideEditor {
     }
 
     document.getElementById('link-url').value = currentUrl;
-    document.getElementById('link-dialog').style.display = 'flex';
+    document.getElementById('link-dialog').showModal();
   }
 
   closeLinkDialog()
   {
-    document.getElementById('link-dialog').style.display = 'none';
+    document.getElementById('link-dialog').showModal();
   }
 
   applyLink()
@@ -2537,13 +2675,13 @@ class SlideEditor {
     const dialog = document.getElementById('class-dialog');
     const input = document.getElementById('class-input');
     input.value = currentClass;
-    dialog.style.display = 'flex';
+    dialog.showModal();
     input.focus();
   }
 
   closeClassDialog()
   {
-    document.getElementById('class-dialog').style.display = 'none';
+    document.getElementById('class-dialog').close();
   }
 
   applyClass()
@@ -2554,18 +2692,6 @@ class SlideEditor {
     }
 
     const className = document.getElementById('class-input').value.trim();
-    // const frameDoc = this.editorFrame.contentDocument;
-    // const selection = frameDoc.getSelection();
-
-    // if (!selection.rangeCount) {
-    //   this.closeClassDialog();
-    //   return;
-    // }
-
-    // const range = selection.getRangeAt(0);
-    // let element = range.commonAncestorContainer;
-
-    // if (element.nodeType === 3) element = element.parentNode;
     const element = this.selectedElement();
 
     if (className) element.className = className;
@@ -2583,18 +2709,6 @@ class SlideEditor {
       return;
     }
 
-    // const frameDoc = this.editorFrame.contentDocument;
-    // const selection = frameDoc.getSelection();
-
-    // if (!selection.rangeCount) {
-    //   this.closeClassDialog();
-    //   return;
-    // }
-
-    // const range = selection.getRangeAt(0);
-    // let element = range.commonAncestorContainer;
-
-    // if (element.nodeType === 3) element = element.parentNode;
     const element = this.selectedElement();
 
     element.removeAttribute('class');
@@ -2622,10 +2736,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      if (file.name.endsWith('.html')) {
-        const content = await file.text();
-        const filePath = file.path; // Electron provides the file path
-        editorInstance.fileOpened({ url: filePath, content: content });
+      if (file.name.match(/\.html?$/i)) {
+	editorInstance.fileToOpen(file.path);
       } else {
         alert('Please drop an HTML file');
       }
