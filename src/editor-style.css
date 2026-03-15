@@ -12,6 +12,10 @@ body {
     overflow: hidden;
 }
 
+:invalid {
+    background: pink;
+}
+
 .toolbar {
     background: #2c3e50;
     color: white;
@@ -71,15 +75,7 @@ body {
 }
 
 .toolbar input[type="checkbox"] {
-    /* margin-right: 5px; */
     cursor: pointer;
-}
-
-.toolbar label {
-    /* display: flex; */
-    /* align-items: center; */
-    /* cursor: pointer; */
-    /* user-select: none; */
 }
 
 .formatting-toolbar {

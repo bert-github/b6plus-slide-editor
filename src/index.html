@@ -196,12 +196,38 @@
         <div>
           <label for="class-input">Class name(s):</label>
           <input type="text" id="class-input" placeholder="my-class another-class">
+	  <input id="class-what" type="hidden">
           <p><small>Separate multiple classes with spaces</small></p>
         </div>
         <div class="modal-footer">
           <button id="apply-class">Apply</button>
           <button id="remove-class">Remove Class</button>
           <button id="cancel-class">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Language Editor Dialog -->
+    <dialog id="language-dialog" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Set Language</h3>
+          <button id="close-language-dialog" class="close-button">✕</button>
+        </div>
+        <div>
+          <p><small>A language tag according
+            to <a target="_blank" href="https://www.rfc-editor.org/info/bcp47"
+            >BCP47</a></small></p>
+          <label for="language-input">Language code:</label>
+          <input type="text" id="language-input"
+		 placeholder="en-us, en-gb, zh-hans, ja, fr..."
+		 pattern="[a-zA-Z]{2,8}(-[a-zA-Z0-9]+)*">
+	  <input id="language-what" type="hidden">
+        </div>
+        <div class="modal-footer">
+          <button id="apply-language">Apply</button>
+          <button id="remove-language">Remove Language</button>
+          <button id="cancel-language">Cancel</button>
         </div>
       </div>
     </dialog>

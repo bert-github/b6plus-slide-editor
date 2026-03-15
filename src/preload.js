@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onFormatRemoveFormat: cb => ipcRenderer.on('r-format-removeformat', cb),
   onAddImage: cb => ipcRenderer.on('r-add-image', cb),
   onEditClass: cb => ipcRenderer.on('r-edit-class', cb),
+  onLanguage: cb => ipcRenderer.on('r-language', cb),
   onFormatBlock: cb => ipcRenderer.on('r-format-block', cb),
   onFormatUl: cb => ipcRenderer.on('r-format-ul', cb),
   onFormatOl: cb => ipcRenderer.on('r-format-ol', cb),

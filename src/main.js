@@ -111,8 +111,10 @@ const template = [
       { label: 'Add Image...',
 	click: () => mainWindow.webContents.send('r-add-image') },
       { type: 'separator' },
+      { label: 'Language...',
+        click: () => mainWindow.webContents.send('r-language', 'selection') },
       { label: 'Edit Class...',
-        click: () => mainWindow.webContents.send('r-edit-class') }
+        click: () => mainWindow.webContents.send('r-edit-class', 'selection') }
     ] },
   { label: 'Blocks',
     submenu: [
@@ -160,8 +162,10 @@ const template = [
       { label: 'Pull From Sub-list',
 	click: () => mainWindow.webContents.send('r-decrease-list-level') },
       { type: 'separator' },
+      { label: 'Language...',
+        click: () => mainWindow.webContents.send('r-language', 'block') },
       { label: 'Edit Class...',
-        click: () => mainWindow.webContents.send('r-edit-class') }
+        click: () => mainWindow.webContents.send('r-edit-class', 'block') }
     ] },
   { id: 'table',
     label: 'Tables',
@@ -212,6 +216,10 @@ const template = [
 	id: 'set-textfit',
 	type: 'checkbox',
 	click: () => mainWindow.webContents.send('r-set-textfit') },
+      { label: 'Default Language...',
+        click: () => mainWindow.webContents.send('r-language', 'document') },
+      { label: 'Slide Language...',
+        click: () => mainWindow.webContents.send('r-language', 'slide') },
       { type: 'separator' },
       { label: 'Play',
         accelerator: 'CmdOrCtrl+P',

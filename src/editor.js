@@ -475,6 +475,7 @@ class SlideEditor {
     // or: range.selectNodeContents(element);
     this.editor.setSelection(range);
     this.previousSelectedElement = element;
+    this.editor.focus();
   }
 
   // expandSelection -- expand the selection to the element enclosing the range
@@ -541,7 +542,8 @@ class SlideEditor {
     window.electronAPI.onAddImage(() => this.openImageDialog());
     window.electronAPI.onFormatUl(() => this.formatUl());
     window.electronAPI.onFormatOl(() => this.formatOl());
-    window.electronAPI.onEditClass(() => this.openClassDialog());
+    window.electronAPI.onEditClass((event, what) => this.openClassDialog(what));
+    window.electronAPI.onLanguage((event, what) => this.openLanguageDialog(what));
 
     window.electronAPI.onMakeTable(() => this.makeTable());
     window.electronAPI.onAddHeaderRow(() => this.addHeaderRow());
@@ -603,7 +605,7 @@ class SlideEditor {
     document.getElementById('block-format').addEventListener('change',
       e => this.setBlockFormat(e.target.value));
     document.getElementById('edit-class').addEventListener('click',
-      () => this.openClassDialog());
+      () => this.openClassDialog('selection'));
     document.getElementById('make-table').addEventListener('click',
       () => this.makeTable());
     document.getElementById('add-header-row').addEventListener('click',
@@ -648,6 +650,12 @@ class SlideEditor {
     document.getElementById('remove-class').addEventListener('click', () => this.removeClass());
     document.getElementById('cancel-class').addEventListener('click', () => this.closeClassDialog());
     document.getElementById('close-class-dialog').addEventListener('click', () => this.closeClassDialog());
+
+    // Language dialog
+    document.getElementById('apply-language').addEventListener('click', () => this.applyLanguage());
+    document.getElementById('remove-language').addEventListener('click', () => this.removeLanguage());
+    document.getElementById('cancel-language').addEventListener('click', () => this.closeLanguageDialog());
+    document.getElementById('close-language-dialog').addEventListener('click', () => this.closeLanguageDialog());
 
     // Password dialog
     document.getElementById('apply-password').addEventListener('click', () => this.applyPassword());
@@ -882,7 +890,8 @@ class SlideEditor {
     document.body.appendChild(frame);
 
     // Build the slide HTML with styles
-    const lang = this.lang ? ` lang="${this.escapeHTML(this.lang)}"` : '';
+    const lang = typeof this.lang === 'string'
+	  ? ` lang="${this.escapeHTML(this.lang)}"` : '';
     // let html = `<!DOCTYPE html><html${lang} style="overflow: hidden">`
     let html = `<!DOCTYPE html><html${lang}>`
 	+ '<head><meta charset=UTF-8>'
@@ -911,7 +920,8 @@ class SlideEditor {
 
     const classes = this.makeClassName(slide);
     const id = slide.id ? ` id="${slide.id}"` : '';
-    const sLang = slide.lang ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
+    const sLang = typeof slide.lang === 'string'
+	  ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
 
     html += `<section${id}${sLang} class="${classes}"`;
     html += ` style="counter-reset: slide ${slideNumber - 1}" inert>`;
@@ -1081,6 +1091,7 @@ class SlideEditor {
   closeStylesheetDialog()
   {
     document.getElementById('stylesheet-dialog').close();
+    document.editor?.focus();
   }
 
   // browseStylesheet -- get the result of a file selection dialog and store it
@@ -1114,6 +1125,7 @@ class SlideEditor {
   closeOpenFileDialog()
   {
     document.getElementById('open-file-dialog').close();
+    document.editor?.focus();
   }
 
   // browseOpenFile -- get the result of a file selection dialog and store it
@@ -1151,6 +1163,7 @@ class SlideEditor {
   closeImageDialog()
   {
     document.getElementById('image-dialog').close();
+    document.editor?.focus();
   }
 
   // browseImage -- get the result of a file selection dialog and store it
@@ -1281,6 +1294,7 @@ class SlideEditor {
   closeCustomCssModal()
   {
     document.getElementById('css-modal').close();
+    document.editor?.focus();
   }
 
   // saveCustomCss -- handle click on the save button of the custom CSS dialog
@@ -1421,6 +1435,7 @@ class SlideEditor {
   closeSaveAsDialog()
   {
     document.getElementById('save-as-dialog').close();
+    document.editor?.focus();
   }
 
   // browseSaveAs -- get the result of a file selection dialog
@@ -1825,6 +1840,7 @@ class SlideEditor {
   {
     document.getElementById('password-dialog').close();
     this.nextAction(null);
+    document.editor?.focus();
   }
 
   // applyPassword -- use the entered username+password to save the current file
@@ -1873,7 +1889,8 @@ class SlideEditor {
   async generateHtmlForPlay()
   {
     const realfile = await this.makeAbsolute(this.currentFilePath);
-    const lang = this.lang ? ` lang="${this.escapeHTML(this.lang)}"` : '';
+    const lang = typeof this.lang === 'string'
+	  ? ` lang="${this.escapeHTML(this.lang)}"` : '';
 
     let html = `<!DOCTYPE html>\n<html${lang}>\n<head>\n`;
     html += '<meta charset=UTF-8>\n';
@@ -1900,7 +1917,8 @@ class SlideEditor {
 
     this.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
-      const lang = slide.lang ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
+      const lang = typeof slide.lang == 'string'
+	    ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
       html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">`;
       // html += slide.content.split('\n').map(line => '        ' + line).join('\n');
       html += slide.content + '</section>\n';
@@ -1913,7 +1931,8 @@ class SlideEditor {
 
   async generateHtml(doc)
   {
-    const lang = doc.lang ? ` lang="${this.escapeHTML(doc.lang)}"` : '';
+    const lang = typeof doc.lang === 'string'
+	  ? ` lang="${this.escapeHTML(doc.lang)}"` : '';
 
     let html = `<!DOCTYPE html>\n<html${lang}>\n<head>\n`;
     html += '<meta charset="UTF-8">\n';
@@ -1935,7 +1954,8 @@ class SlideEditor {
 
     doc.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
-      const lang = slide.lang ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
+      const lang = typeof slide.lang === 'string'
+	    ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
       html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">`;
       // html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
       html += slide.content + '</section>\n';
@@ -1986,8 +2006,10 @@ class SlideEditor {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // Extract language.
-    this.lang = doc.documentElement.lang;
+    // Extract language. (Don't use .lang, because it doesn't
+    // distinguish the empty string from the absence of the
+    // attribute.)
+    this.lang = doc.documentElement.getAttribute('lang');
 
     // Extract CSS URL
     const linkElement = doc.querySelector('link[rel="stylesheet"]');
@@ -2213,6 +2235,7 @@ class SlideEditor {
   closeLinkDialog()
   {
     document.getElementById('link-dialog').showModal();
+    document.editor?.focus();
   }
 
   applyLink()
@@ -2643,6 +2666,31 @@ class SlideEditor {
     this.editor.focus();
   }
 
+  // coveredElement -- the element of which all content is selected, or null
+  coveredElement()
+  {
+    const range = this.editor.getSelection();
+    const {commonAncestorContainer, startContainer, startOffset,
+      endContainer, endOffset} = range;
+    const container = this.selectedElement();
+    let e;
+
+    if (startContainer != container && startOffset !== 0) return null;
+    e = startContainer;
+    while (e !== container) {
+      if (e !== e.parentNode.firstChild) return null;
+      e = e.parentNode;
+    }
+    const endLength = endContainer.length ?? endContainer.childNodes.length;
+    if (endContainer != container && endOffset !== endLength) return null;
+    e = endContainer;
+    while (e != container) {
+      if (e !== e.parentNode.lastChild) return null;
+      e = e.parentNode;
+    }
+    return container;
+  }
+
   // selectedElement -- get selected element, or ancestor if multiple selected
   selectedElement()
   {
@@ -2659,63 +2707,228 @@ class SlideEditor {
       return commonAncestorContainer;
     if (commonAncestorContainer === startContainer
 	&& startContainer === endContainer
- 	&& endOffset === startOffset + 1
+	&& endOffset === startOffset + 1
 	&& startContainer.childNodes[startOffset].nodeType ===Node.ELEMENT_NODE)
       return startContainer.childNodes[startOffset];
     return commonAncestorContainer;
   }
 
-  openClassDialog()
+  openClassDialog(what)
   {
     if (!this.editor || this.isHtmlView) return;
 
     const element = this.selectedElement();
     const currentClass = element.className || '';
 
-    const dialog = document.getElementById('class-dialog');
     const input = document.getElementById('class-input');
     input.value = currentClass;
-    dialog.showModal();
+    document.getElementById('class-what').value = what;
+    document.getElementById('class-dialog').showModal();
     input.focus();
   }
 
   closeClassDialog()
   {
     document.getElementById('class-dialog').close();
+    this.editor?.focus();
   }
 
+  // setClassAttribute -- helper for applyClass and removeClass
+  setClassAttribute(what, className)
+  {
+    // If className is null, it means to remove the class attribute.
+
+    if (what === 'block') {
+
+      this.editor.saveUndoState();
+      const frameDoc = this.editorFrame.contentDocument;
+      const wrapper = frameDoc.getElementById('slide-wrapper');
+      let node = this.selectedElement();
+      let block = null;
+      while (!block && node && node !== frameDoc && node !== wrapper) {
+	const tagName = node.tagName.toLowerCase();
+	if (SlideEditor.blockElements.includes(tagName)) block = node;
+	node = node.parentNode;
+      }
+      if (block) {
+	if (typeof className === 'string') block.className = className;
+	else block.removeAttribute('class');
+      }
+      this.updateElementPath();
+      this.updateCurrentSlideContent();
+
+    } else if (!this.editor.getSelection().collapsed) {
+
+      console.assert(what === 'selection');
+      this.editor.saveUndoState();
+      const container = this.coveredElement();
+      if (container && typeof className === 'string') {
+	container.className = className;
+      } else if (typeof className === 'string') {
+	this.editor.changeFormat({tag:'span', attributes:{'class':className}});
+      } else if (container) {
+	container.removeAttribute('class');
+	if (container.tagName === 'SPAN' && container.attributes.length === 0)
+	  container.replaceWith(...container.childNodes);
+      }
+      this.updateElementPath();
+      this.updateCurrentSlideContent();
+
+    } else {
+
+      console.assert(what === 'selection');
+      const elt = this.selectedElement();
+      if (typeof className === 'string') elt.className = className;
+      else elt.removeAttribute('class');
+      this.updateElementPath();
+      this.updateCurrentSlideContent();
+
+    }
+  }
+
+  // applyClass -- handle click on "apply" in the class dialog
   applyClass()
   {
-    if (!this.editor || this.isHtmlView) {
-      this.closeClassDialog();
-      return;
-    }
+    this.closeClassDialog();
+    if (!this.editor || this.isHtmlView) return;
 
     const className = document.getElementById('class-input').value.trim();
-    const element = this.selectedElement();
-
-    if (className) element.className = className;
-    else element.removeAttribute('class');
-
-    this.updateCurrentSlideContent();
-    this.closeClassDialog();
+    const what = document.getElementById('class-what').value;
+    this.setClassAttribute(what, className);
   }
 
   // removeClass -- handle click on "remove class" button in the class dialog
   removeClass()
   {
-    if (!this.editor || this.isHtmlView) {
-      this.closeClassDialog();
-      return;
-    }
-
-    const element = this.selectedElement();
-
-    element.removeAttribute('class');
-
-    this.updateCurrentSlideContent();
     this.closeClassDialog();
+    if (!this.editor || this.isHtmlView) return;
+
+    const what = document.getElementById('class-what').value;
+    this.setClassAttribute(what, null);
   }
+
+  // currentLanguage -- find language of current selection
+  currentLanguage()
+  {
+    let elt = this.selectedElement();
+    while (elt && !elt.lang) elt = elt.parentNode;
+    return elt ? elt.lang : '';
+  }
+
+  // openLanguageDialog -- show the dialog for setting a language
+  openLanguageDialog(what)
+  {
+    if (!this.editor || this.isHtmlView) return;
+
+    const input = document.getElementById('language-input');
+    input.value = this.currentLanguage();
+    document.getElementById('language-what').value = what;
+    document.getElementById('language-dialog').showModal();
+    input.focus();
+  }
+
+  // closeLanguageDialog -- close the langue dialog
+  closeLanguageDialog()
+  {
+    document.getElementById('language-dialog').close();
+    this.editor?.focus();
+  }
+
+  // setLangAttribute -- helper for applyLanguage and removeLanguage
+  setLangAttribute(what, lang)
+  {
+    // If lang is null, it means to remove the lang attribute.
+
+    if (what === 'document') {
+
+      this.lang = lang;
+      const frameDoc = this.editorFrame.contentDocument;
+      const wrapper = frameDoc.getElementById('slide-wrapper');
+      if (wrapper) {
+	if (typeof lang === 'string') wrapper.lang = lang;
+	else wrapper.removeAttribute('lang');
+      }
+      this.updateSlidesList();
+
+    } else if (what === 'slide') {
+
+      const slide = this.slides[this.currentSlideIndex];
+      const frameDoc = this.editorFrame.contentDocument;
+      const wrapper = frameDoc.getElementById('slide-wrapper');
+      if (slide) slide.lang = lang;
+      if (wrapper) {
+	if (typeof lang === 'string') wrapper.lang = lang;
+	else wrapper.removeAttribute('lang');
+      }
+      this.updateSlidesList();
+
+    } else if (what === 'block') {
+
+      this.editor.saveUndoState();
+      const frameDoc = this.editorFrame.contentDocument;
+      const wrapper = frameDoc.getElementById('slide-wrapper');
+      let node = this.selectedElement();
+      let block = null;
+      while (!block && node && node !== frameDoc && node !== wrapper) {
+	const tagName = node.tagName.toLowerCase();
+	if (SlideEditor.blockElements.includes(tagName)) block = node;
+	node = node.parentNode;
+      }
+      if (block) {
+	if (typeof lang === 'string') block.lang = lang;
+	else block.removeAttribute('lang');
+      }
+      this.updateCurrentSlideContent();
+
+    } else if (!this.editor.getSelection().collapsed) {
+
+      console.assert(what === 'selection');
+      this.editor.saveUndoState();
+      const container = this.coveredElement();
+      if (container && typeof lang === 'string') {
+	container.lang = lang;
+      } else if (typeof lang === 'string') {
+	this.editor.changeFormat({tag:'span', attributes:{'lang':lang}});
+      } else if (container) {
+	container.removeAttribute('lang');
+	if (container.tagName === 'SPAN' && container.attributes.length === 0)
+	  container.replaceWith(...container.childNodes);
+      }
+      this.updateCurrentSlideContent();
+
+    } else {
+
+      console.assert(what === 'selection');
+      const elt = this.selectedElement();
+      if (typeof lang === 'string') elt.lang = lang;
+      else elt.removeAttribute('lang');
+      this.updateCurrentSlideContent();
+
+    }
+  }
+
+  // applyLanguage -- set the chosen language on the element indicated by what
+  applyLanguage()
+  {
+    this.closeLanguageDialog();
+    if (!this.editor || this.isHtmlView) return;
+
+    const lang = document.getElementById('language-input').value.trim().
+	  toLowerCase();
+    const what = document.getElementById('language-what').value;
+    this.setLangAttribute(what, lang);
+  }
+
+  // removeLanguage -- handle click on Remove Language button
+  removeLanguage()
+  {
+    this.closeLanguageDialog();
+    if (!this.editor || this.isHtmlView) return;
+
+    const what = document.getElementById('language-what').value;
+    this.setLangAttribute(what, null);
+  }
+
 } 				// end of class SlideEditor
 
 
