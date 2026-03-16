@@ -36,7 +36,7 @@ class SlideEditor {
     this.cssUrl = '';
     this.cssUrlInfo = {
       documentation: null,
-      "supports-clear": true,
+      "supports-clear": false,
       layouts: SlideEditor.defaultLayouts,
       transitions: SlideEditor.defaultTransitions
     };
@@ -2234,16 +2234,14 @@ class SlideEditor {
 
   closeLinkDialog()
   {
-    document.getElementById('link-dialog').showModal();
+    document.getElementById('link-dialog').close();
     document.editor?.focus();
   }
 
   applyLink()
   {
-    if (!this.editor || this.isHtmlView) {
-      this.closeLinkDialog();
-      return;
-    }
+    this.closeLinkDialog();
+    if (!this.editor || this.isHtmlView) return;
 
     const url = document.getElementById('link-url').value.trim();
 
@@ -2251,8 +2249,6 @@ class SlideEditor {
       this.editor.makeLink(url);
       this.updateCurrentSlideContent();
     }
-
-    this.closeLinkDialog();
   }
 
   removeLink()
