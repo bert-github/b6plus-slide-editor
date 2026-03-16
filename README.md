@@ -13,6 +13,7 @@ A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 - **File operations**: Open, save, and create new slide decks
 - **Play mode**: Preview slides in browser with b6+ presentation mode
 - **Thumbnail previews**: Visual thumbnails of all slides in the sidebar
+- **Online slides**: Edit slides directly on the web (requires a server with HTTP PUT)
 
 ## Pre-built installers
 
@@ -21,6 +22,8 @@ A WYSIWYG editor for HTML slide decks built with Electron and Squire RTE.
 | 0.1.0   | [b6plus-slide-editor_0.1.0_amd64.deb](https://www.w3.org/Talks/Tools/b6plus-editor/b6plus-slide-editor_0.1.0_amd64.deb) | [B6+ Slide Editor-0.1.0-arm64.dmg](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor-0.1.0-arm64.dmg) | [B6+ Slide Editor-0.1.0.dmg](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor-0.1.0.dmg) | [B6+ Slide Editor Setup 0.1.0.exe](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor%20Setup%200.1.0.exe) | [B6+ Slide Editor 0.1.0.exe](https://www.w3.org/Talks/Tools/b6plus-editor/B6+%20Slide%20Editor%200.1.0.exe) |
 
 ## Installation
+
+If not using a pre-built binary, clone or fork the repository and then:
 
 1. Make sure you have Node.js installed (version 16 or higher recommended)
 
@@ -45,7 +48,7 @@ You can also open a file directly from the command line:
 npm start path/to/slides.html
 ```
 
-Or in an installed application:
+Or if you installed a pre-built binary:
 ```bash
 b6plus-slide-editor path/to/slides.html
 ```
@@ -149,9 +152,9 @@ The editor creates HTML files with the following structure:
 - **Ctrl/Cmd+S**: Save file
 - **Ctrl/Cmd+Shift+S**: Save file as
 - **Ctrl/Cmd+Z**: Undo (in editor)
-- **Ctrl/Cmd+Y** or **Ctrl/Cmd+Shift+Z**: Redo (in editor)
+- **Ctrl/Cmd+Shift+Z**: Redo (in editor)
 
-## technical details
+## Technical details
 
 ### Built with
 
