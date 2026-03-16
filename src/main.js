@@ -258,7 +258,10 @@ const template = [
       { label: 'Style Help',
 	id: 'style-help',
 	enabled: false,
-	click: () => mainWindow.webContents.send('r-style-help') }
+	click: () => mainWindow.webContents.send('r-style-help') },
+      ...(process.platform !== 'darwin' ? [
+	{ type: 'separator' },
+	{ role: 'about' } ] : [])
     ] }
 ];
 
@@ -310,9 +313,9 @@ function createWindow()
 
   app.setAboutPanelOptions({
     applicationName: "B6+ slide editor", // string (optional) - The app's name.
-    applicationVersion: "0.1.1", // string (optional) - The app's version.
+    applicationVersion: "0.1", // string (optional) - The app's version.
     copyright: "© 2026 W3C", // string (optional) - Copyright information.
-    version: "0.1", // string (optional) macOS - The app's build version number.
+    version: "0.1.3", // string (optional) macOS - The app's build version number.
     // credits: "", // string (optional) macOS Windows - Credit information.
     authors: ["Bert Bos"], // string[] (optional) Linux - List of app authors.
     website: "https://www.w3.org/Talks/Tools/b6plus-editor/manual.html", // string (optional) Linux - The app's website.
