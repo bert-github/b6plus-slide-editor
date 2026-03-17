@@ -302,6 +302,43 @@ class SlideEditor {
       this.handleArrowLeftOrRight(editor, event, range);
     });
 
+    // Ctrl+1,...Ctrl+6 make H1... H6
+    this.editor.setKeyHandler(ctrlKey + '1', editor => {
+      editor.forEachBlock(block => {
+	if (block.tagName !== 'H1') this.renameElement(block, 'h1');
+	else this.renameElement(block, 'p');
+      }, true);
+    });
+    this.editor.setKeyHandler(ctrlKey + '2', editor => {
+      editor.forEachBlock(block => {
+	if (block.tagName !== 'H2') this.renameElement(block, 'h2');
+	else this.renameElement(block, 'p');
+      }, true);
+    });
+    this.editor.setKeyHandler(ctrlKey + '3', editor => {
+      editor.forEachBlock(block => {
+	if (block.tagName !== 'H3') this.renameElement(block, 'h3');
+	else this.renameElement(block, 'p');
+      }, true);
+    });
+    this.editor.setKeyHandler(ctrlKey + '4', editor => {
+      editor.forEachBlock(block => {
+	if (block.tagName !== 'H4') this.renameElement(block, 'h4');
+	else this.renameElement(block, 'p');
+      }, true);
+    });
+    this.editor.setKeyHandler(ctrlKey + '5', editor => {
+      editor.forEachBlock(block => {
+	if (block.tagName !== 'H5') this.renameElement(block, 'h5');
+	else this.renameElement(block, 'p');
+      }, true);
+    });
+    this.editor.setKeyHandler(ctrlKey + '6', editor => {
+      editor.forEachBlock(block => {
+	if (block.tagName !== 'H6') this.renameElement(block, 'h6');
+	else this.renameElement(block, 'p');
+      }, true);
+    });
 
     // After an Undo or Redo event, update the Edit menu
     this.editor.addEventListener('undoStateChange', event => {
@@ -712,7 +749,6 @@ class SlideEditor {
   addInitialSlide()
   {
     this.addSlide();
-    this.loadCurrentSlide();
     // Reset unsaved changes flag since this is just initialization
     this.setEdited(false);
   }
@@ -992,12 +1028,20 @@ class SlideEditor {
       numberSpan.textContent = `(Slide #${slideNumber})`;
     }
 
+    // Load content based on view mode
+    if (this.isHtmlView)
+      document.getElementById('html-editor').value = slide.content;
+    else
+      this.initializeSquire();
+
     // Update the wrapper class in the iframe
     if (this.editorFrame && this.editorFrame.contentDocument) {
       const wrapper = this.editorFrame.contentDocument.getElementById(
 	'slide-wrapper');
       if (wrapper) {
-	wrapper.lang = slide.lang ?? this.lang;
+	const lang = slide.lang ?? this.lang;
+	if (typeof lang === 'string') wrapper.lang = lang;
+	else wrapper.removeAttribute('lang');
 	wrapper.className = this.makeClassName(slide);
 
         // Reset CSS counter to make slide numbers display correctly
@@ -1018,12 +1062,6 @@ class SlideEditor {
     const textfitButton = document.getElementById('slide-textfit');
     if (textfitButton) textfitButton.checked = slide.slideTextfit;
     window.electronAPI.setTextfit(slide.slideTextfit);
-
-    // Load content based on view mode
-    if (this.isHtmlView)
-      document.getElementById('html-editor').value = slide.content;
-    else
-      this.initializeSquire();
 
     this.applyCssToFrame();
   }
@@ -1426,7 +1464,7 @@ class SlideEditor {
   openSaveAsDialog()
   {
     document.getElementById('save-as-url').value =
-      this.currentFilePath.replace(/^file:\/\//i, '');
+      this.currentFilePath?.replace(/^file:\/\//i, '') ?? '';
     document.getElementById('save-as-dialog').showModal();
     document.getElementById('stylesheet-url').focus();
   }
@@ -1917,7 +1955,7 @@ class SlideEditor {
 
     this.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
-      const lang = typeof slide.lang == 'string'
+      const lang = typeof slide.lang === 'string'
 	    ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
       html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">`;
       // html += slide.content.split('\n').map(line => '        ' + line).join('\n');
