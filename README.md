@@ -152,7 +152,7 @@ The editor creates HTML files with the following structure:
 - **Ctrl/Cmd+S**: Save file
 - **Ctrl/Cmd+Shift+S**: Save file as
 - **Ctrl/Cmd+Z**: Undo (in editor)
-- **Ctrl/Cmd+Shift+Z**: Redo (in editor)
+- **Ctrl/Cmd+Y** or **Ctrl/Cmd+Shift+Z**: Redo (in editor)
 
 ## Technical details
 
