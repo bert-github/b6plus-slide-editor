@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   onNewFile: cb => ipcRenderer.on('r-new-file', cb),
@@ -75,5 +75,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showUndoRedo: (canUndo, canRedo) => ipcRenderer.send('a-show-undo-redo',
     canUndo, canRedo),
   setTitle: (title) => ipcRenderer.send('a-set-title', title),
-  replyPassword: (auth) => ipcRenderer.send('a-reply-password', auth)
+  replyPassword: (auth) => ipcRenderer.send('a-reply-password', auth),
+  getPath: (file) => webUtils.getPathForFile(file)
 });
