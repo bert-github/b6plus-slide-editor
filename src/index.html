@@ -157,12 +157,14 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Custom CSS</h3>
-          <button id="close-css-modal" class="close-button">✕</button>
+          <button id="close-css-modal" command="request-close"
+		  commandfor="css-modal" class="close-button">✕</button>
         </div>
         <textarea id="custom-css-editor" placeholder="/* Add custom CSS rules here */"></textarea>
         <div class="modal-footer">
           <button id="save-custom-css">Save</button>
-          <button id="cancel-custom-css">Cancel</button>
+          <button id="cancel-custom-css" command="request-close"
+		  commandfor="css-modal">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -172,7 +174,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Change Style Sheet</h3>
-          <button id="close-stylesheet-dialog" class="close-button">✕</button>
+          <button id="close-stylesheet-dialog" command="request-close"
+		  commandfor="stylesheet-dialog" class="close-button">✕</button>
         </div>
         <div>
           <label for="stylesheet-url">CSS URL or file path:</label>
@@ -181,7 +184,8 @@
         </div>
         <div class="modal-footer">
           <button id="apply-stylesheet">Apply</button>
-          <button id="cancel-stylesheet">Cancel</button>
+          <button id="cancel-stylesheet" command="request-close"
+		  commandfor="stylesheet-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -191,7 +195,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Edit Class Attribute</h3>
-          <button id="close-class-dialog" class="close-button">✕</button>
+          <button id="close-class-dialog" command="request-close"
+		  commandfor="class-dialog" class="close-button">✕</button>
         </div>
         <div>
           <label for="class-input">Class name(s):</label>
@@ -202,7 +207,8 @@
         <div class="modal-footer">
           <button id="apply-class">Apply</button>
           <button id="remove-class">Remove Class</button>
-          <button id="cancel-class">Cancel</button>
+          <button id="cancel-class" command="request-close"
+		  commandfor="class-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -212,7 +218,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Set Language</h3>
-          <button id="close-language-dialog" class="close-button">✕</button>
+          <button id="close-language-dialog" command="request-close"
+		  commandfor="language-dialog" class="close-button">✕</button>
         </div>
         <div>
           <p><small>A language tag according
@@ -227,7 +234,8 @@
         <div class="modal-footer">
           <button id="apply-language">Apply</button>
           <button id="remove-language">Remove Language</button>
-          <button id="cancel-language">Cancel</button>
+          <button id="cancel-language" command="request-close"
+		  commandfor="language-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -237,7 +245,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Insert/Edit Link</h3>
-          <button id="close-link-dialog" class="close-button">✕</button>
+          <button id="close-link-dialog" command="request-close"
+		  commandfor="link-dialog" class="close-button">✕</button>
         </div>
         <div>
           <label for="link-url">URL:</label>
@@ -246,7 +255,8 @@
         <div class="modal-footer">
           <button id="apply-link">Apply</button>
           <button id="remove-link">Remove Link</button>
-          <button id="cancel-link">Cancel</button>
+          <button id="cancel-link" command="request-close"
+		  commandfor="link-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -256,7 +266,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Insert Image</h3>
-          <button id="close-image-dialog" class="close-button">✕</button>
+          <button id="close-image-dialog" command="request-close"
+		  commandfor="image-dialog" class="close-button">✕</button>
         </div>
         <div>
           <label for="image-url">Image URL or file path:</label>
@@ -267,7 +278,8 @@
         </div>
         <div class="modal-footer">
           <button id="apply-image">Apply</button>
-          <button id="cancel-image">Cancel</button>
+          <button id="cancel-image" command="request-close"
+		  commandfor="image-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -277,7 +289,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Open a Slide Deck</h3>
-          <button id="close-open-file-dialog" class="close-button">✕</button>
+          <button id="close-open-file-dialog" command="request-close"
+		  commandfor="open-file-dialog" class="close-button">✕</button>
         </div>
         <div>
           <label for="open-file-url">URL or file path:</label>
@@ -286,7 +299,8 @@
         </div>
         <div class="modal-footer">
           <button id="apply-open-file">Apply</button>
-          <button id="cancel-open-file">Cancel</button>
+          <button id="cancel-open-file" command="request-close"
+		  commandfor="open-file-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -296,7 +310,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Save Slide Deck</h3>
-          <button id="close-save-as-dialog" class="close-button">✕</button>
+          <button id="close-save-as-dialog" command="request-close"
+		  commandfor="save-as-dialog" class="close-button">✕</button>
         </div>
         <div>
           <label for="save-as-url">URL or file path:</label>
@@ -305,7 +320,8 @@
         </div>
         <div class="modal-footer">
           <button id="apply-save-as">Apply</button>
-          <button id="cancel-save-as">Cancel</button>
+          <button id="cancel-save-as" command="request-close"
+		  commandfor="save-as-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -316,7 +332,8 @@
       <div class="modal-content">
 	<div class="modal-header">
 	  <h3>User name and password required</h3>
-	  <button id="close-password-dialog" class="close-button">✕</button>
+	  <button id="close-password-dialog" command="request-close"
+		  commandfor="password-dialog" class="close-button">✕</button>
 	</div>
 	<div>
 	  <p>URL: <span id="password-dialog-url"></span></p>
@@ -328,7 +345,8 @@
         </div>
         <div class="modal-footer">
           <button id="apply-password">Apply</button>
-          <button id="cancel-password">Cancel</button>
+          <button id="cancel-password" command="request-close"
+		  commandfor="password-dialog">Cancel</button>
         </div>
       </div>
     </dialog>
