@@ -616,6 +616,8 @@ async function updateLayoutAndTransitionsMenus(event, json)
 	const c = h.class;
 	defTransMenu.submenu.push({
 	  label: n,
+	  id: 'default-transition-' + (c || 'default'),
+	  type: 'checkbox',
 	  click: () => mainWindow.webContents.send('r-set-default-transition', c)
 	});
       }
@@ -638,6 +640,8 @@ async function updateLayoutAndTransitionsMenus(event, json)
 	const c = h.class;
 	slideTransMenu.submenu.push({
 	  label: n,
+	  id: 'slide-transition-' + (c || 'default'),
+	  type: 'checkbox',
 	  click: () => mainWindow.webContents.send('r-set-slide-transition', c)
 	});
       }
@@ -683,6 +687,30 @@ function showUndoRedo(event, canUndo, canRedo)
   if (redoItem) redoItem.enabled = canRedo;
 }
 
+// setDefaultTransition -- add/remove a checkbox in the default transitions menu
+function setDefaultTransition(event, chosenTransition)
+{
+  const menu = Menu.getApplicationMenu();
+  const defTransItem = menu.getMenuItemById('default-transitions');
+  if (!defTransItem || !defTransItem.submenu) return;		// Bug?
+  console.log(`setDefaultTransition "${chosenTransition}"`);
+  const id = 'default-transition-' + (chosenTransition || 'default');
+  for (const item of defTransItem.submenu.items)
+    item.checked = item.id === id;
+}
+
+// setSlideTransition -- add/remove a checkbox in the slide transitions menu
+function setSlideTransition(event, chosenTransition)
+{
+  const menu = Menu.getApplicationMenu();
+  const slideTransItem = menu.getMenuItemById('slide-transitions');
+  if (!slideTransItem || !slideTransItem.submenu) return; // Bug?
+  console.log(`setSlideTransition "${chosenTransition}"`);
+  const id = 'slide-transition-' + (chosenTransition || 'default');
+  for (const item of slideTransItem.submenu.items)
+    item.checked = item.id === id;
+}
+
 // Handle response from unsaved changes check
 function proceedWithClose()
 {
@@ -726,6 +754,8 @@ ipcMain.on('a-show-hide-clear', showHideClear);
 ipcMain.on('a-show-undo-redo', showUndoRedo);
 ipcMain.on('a-proceed-with-close', proceedWithClose);
 ipcMain.on('a-cancel-close', cancelClose);
+ipcMain.on('a-set-default-transition', setDefaultTransition);
+ipcMain.on('a-set-slide-transition', setSlideTransition);
 
 app.whenReady().then(() => createWindow());
 
