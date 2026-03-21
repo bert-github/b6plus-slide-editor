@@ -68,8 +68,9 @@ class SlideEditor {
 	  event.preventDefault();
 	  event.stopPropagation();
 	  const range = target.ownerDocument.createRange();
-	  range.setStartBefore(target);
-	  range.setEndAfter(target);
+	  range.selectNode(target);
+	  // range.setStartBefore(target);
+	  // range.setEndAfter(target);
 	  this.editor.setSelection(range);
 	}
       });
@@ -388,7 +389,6 @@ class SlideEditor {
 	document.getElementById('image-url').value = path;
 	document.getElementById('alt-text').value = '';
 	this.openImageDialog();
-	// this.insertImages(event.detail.clipboardData);
       }
     });
 
@@ -439,6 +439,7 @@ class SlideEditor {
     if (slide.styleClass) classes += ' ' + slide.styleClass;
     if (slide.slideClear) classes += ' clear';
     if (slide.slideTextfit) classes += ' textfit';
+    // if (slide.transition) classes += ' ' + slide.transition;
     if (slide.otherClasses) classes += ' ' + slide.otherClasses;
     return classes;
   }
@@ -1062,6 +1063,9 @@ class SlideEditor {
     if (textfitButton) textfitButton.checked = slide.slideTextfit;
     window.electronAPI.setTextfit(slide.slideTextfit);
 
+    // Update "transition" menu item
+    window.electronAPI.setSlideTransition(slide.transition);
+
     this.applyCssToFrame();
   }
 
@@ -1199,7 +1203,8 @@ class SlideEditor {
     document.getElementById('image-dialog').close();
     document.editor?.focus();
     this.setEdited();
-    this.editor.insertImage(filePath, { alt: altText });
+    const relPath = this.relative(this.currentFilePath, filePath);
+    this.editor.insertImage(relPath, { alt: altText });
     this.editor.saveUndoState();
   }
 
@@ -1340,7 +1345,12 @@ class SlideEditor {
   // setDefaultTransition -- handle click on default transitions menu
   setDefaultTransition(transition)
   {
-    this.defaultTransition = transition;
+    if (this.defaultTransitions !== transition) {
+      console.log(`setDefaultTransition "${transition}"`);
+      this.defaultTransition = transition;
+      window.electronAPI.setDefaultTransition(transition);
+      this.setEdited();
+    }
   }
 
   // setSlideTransition -- handle click on slide transitions menu
@@ -1349,7 +1359,12 @@ class SlideEditor {
     if (this.slides.length === 0) return;
 
     const currentSlide = this.slides[this.currentSlideIndex];
-    currentSlide.transition = transition;
+    if (currentSlide.transition !== transition) {
+      console.log(`setSlideTransition "${transition}"`);
+      currentSlide.transition = transition;
+      window.electronAPI.setSlideTransition(transition);
+      this.setEdited();
+    }
   }
 
   // setClear -- "clear" was selected in the menu or the checkbox was clicked
@@ -1731,6 +1746,17 @@ class SlideEditor {
 	  return;
 	}
 	newCssUrl = this.relative(newBase, absNewCssUrl);
+
+	const styleJSON = {
+	  documentation: this.cssUrlInfo.documentation,
+	  'supports-clear': this.cssUrlInfo['supports-clear'],
+	  layouts: this.cssUrlInfo.layouts,
+	  transitions: this.cssUrlInfo.transitions,
+	};
+	const jsonUrl = absNewCssUrl.replace(/\.css$/i, '') + '.json';
+	const writeResult2 = await this.writeFileWithAuth(jsonUrl,
+	  JSON.stringify(styleJSON));
+	// TO DO: Warn when writing failed?
       } else {
 	// The style sheet is on the web. Just make its URL relative.
 	newCssUrl = this.relative(newBase, this.absolute(absOldCssUrl,oldBase));
@@ -2034,6 +2060,8 @@ class SlideEditor {
       if (t.class
 	  && t.class.split(' ').every(c => doc.body.classList.contains(c))) {
 	this.defaultTransition = t.class;
+	console.log(`default transition "${t.class}"`);
+	window.electronAPI.setDefaultTransition(t.class);
 	break;
       }
 
@@ -2043,7 +2071,7 @@ class SlideEditor {
 
     sections.forEach(section => {
       // Find the language, if any.
-      const lang = section.lang;
+      const lang = section.getAttribute('lang');
 
       // Find the type and remove it from the classes.
       const type = section.classList.contains('comment') ? 'comment' : 'slide';
@@ -2662,9 +2690,15 @@ class SlideEditor {
     const range = this.editor.getSelection();
     const {commonAncestorContainer, startContainer, startOffset,
       endContainer, endOffset} = range;
-    const container = this.selectedElement();
     let e;
 
+    if (startContainer.nodeType === Node.ELEMENT_NODE
+	&& startContainer === endContainer
+	&& startContainer.childNodes[startOffset].nodeType === Node.ELEMENT_NODE
+	&& endOffset === startOffset + 1)
+      return startContainer.childNodes[startOffset];
+
+    const container = this.selectedElement();
     if (startContainer != container && startOffset !== 0) return null;
     e = startContainer;
     while (e !== container) {
@@ -2793,7 +2827,7 @@ class SlideEditor {
     this.setClassAttribute(what, null);
   }
 
-  // currentLanguage -- find language of current selection
+  // currentLanguage -- find language of current selection, or an empty string
   currentLanguage()
   {
     let elt = this.selectedElement();
