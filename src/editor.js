@@ -58,7 +58,38 @@ class SlideEditor {
   initializeUI()
   {
     this.editorFrame = document.getElementById('editor-frame');
-    this.editorFrame.addEventListener('load', () => this.initializeSquire());
+    this.editorFrame.addEventListener('load', () => {
+      this.initializeSquire();
+
+      // A click on an image selects that image
+      this.editorFrame.contentDocument.addEventListener('click', event => {
+	const target = event.target;
+	if (target.nodeName === 'IMG' || target.nodeName === 'svg') {
+	  event.preventDefault();
+	  event.stopPropagation();
+	  const range = target.ownerDocument.createRange();
+	  range.setStartBefore(target);
+	  range.setEndAfter(target);
+	  this.editor.setSelection(range);
+	}
+      });
+
+      // Handle drag and drop of images or slide decks onto the editor
+      this.editorFrame.contentDocument.addEventListener('drop', event => {
+	event.preventDefault();
+	event.stopPropagation();
+	const file = event.dataTransfer.files[0];
+	if (file?.type.substring(0, 6) === 'image/') {
+	  const path = window.electronAPI.getPath(file);
+	  document.getElementById('image-url').value = path;
+	  document.getElementById('alt-text').value = '';
+	  this.openImageDialog();
+	} else if (file?.type === 'text/html') {
+	  const path = window.electronAPI.getPath(file);
+	  this.fileToOpen(path);
+	}
+      });
+    });
 
     // Get the base path for loading Squire
     // In development: file:///.../src/
@@ -351,19 +382,13 @@ class SlideEditor {
 
     // Add a handler for when an image is copy-pasted
     this.editor.addEventListener('pasteImage', event => {
-      // this.insertImages(event.detail.clipboardData);
-    });
-
-    // A click on an image selects that image
-    frameDoc.addEventListener('click', event => {
-      const target = event.target;
-      if (target.nodeName === 'IMG' || target.nodeName === 'svg') {
-	event.preventDefault();
-	event.stopPropagation();
-	const range = target.ownerDocument.createRange();
-	range.setStartBefore(target);
-	range.setEndAfter(target);
-	this.editor.setSelection(range);
+      if (event.detail.clipboardData.files.length > 0) {
+	const file = event.detail.clipboardData.files[0];
+	const path = window.electronAPI.getPath(file);
+	document.getElementById('image-url').value = path;
+	document.getElementById('alt-text').value = '';
+	this.openImageDialog();
+	// this.insertImages(event.detail.clipboardData);
       }
     });
 
@@ -615,14 +640,6 @@ class SlideEditor {
       () => this.formatInline('strong'));
     document.getElementById('format-emphasis').addEventListener('click',
       () => this.formatInline('em'));
-    // document.getElementById('format-bold').addEventListener('click',
-    //   () => this.formatInline('b'));
-    // document.getElementById('format-italic').addEventListener('click',
-    //   () => this.formatInline('i'));
-    // document.getElementById('format-underline').addEventListener('click',
-    //   () => this.formatInline('u'));
-    // document.getElementById('format-strikethrough').addEventListener('click',
-    //   () => this.formatInline('s'));
     document.getElementById('format-code').addEventListener('click',
       () => this.formatInline('code'));
     document.getElementById('format-link').addEventListener('click',
@@ -660,55 +677,37 @@ class SlideEditor {
 
     // Stylesheet dialog
     document.getElementById('apply-stylesheet').addEventListener('click', () => this.applyStylesheet());
-    document.getElementById('cancel-stylesheet').addEventListener('click', () => this.closeStylesheetDialog());
-    document.getElementById('close-stylesheet-dialog').addEventListener('click', () => this.closeStylesheetDialog());
     document.getElementById('browse-stylesheet').addEventListener('click', () => this.browseStylesheet());
 
     // Image dialog
     document.getElementById('apply-image').addEventListener('click', () => this.applyImage());
-    document.getElementById('cancel-image').addEventListener('click', () => this.closeImageDialog());
-    document.getElementById('close-image-dialog').addEventListener('click', () => this.closeImageDialog());
     document.getElementById('browse-image').addEventListener('click', () => this.browseImage());
 
     // Open File dialog
     document.getElementById('apply-open-file').addEventListener('click', () => this.applyOpenFile());
-    document.getElementById('cancel-open-file').addEventListener('click', () => this.closeOpenFileDialog());
-    document.getElementById('close-open-file-dialog').addEventListener('click', () => this.closeOpenFileDialog());
     document.getElementById('browse-open-file').addEventListener('click', () => this.browseOpenFile());
 
     // Save As dialog
     document.getElementById('apply-save-as').addEventListener('click', () => this.applySaveAs());
-    document.getElementById('cancel-save-as').addEventListener('click', () => this.closeSaveAsDialog());
-    document.getElementById('close-save-as-dialog').addEventListener('click', () => this.closeSaveAsDialog());
     document.getElementById('browse-save-as').addEventListener('click', () => this.browseSaveAs());
 
     // Class dialog
     document.getElementById('apply-class').addEventListener('click', () => this.applyClass());
     document.getElementById('remove-class').addEventListener('click', () => this.removeClass());
-    document.getElementById('cancel-class').addEventListener('click', () => this.closeClassDialog());
-    document.getElementById('close-class-dialog').addEventListener('click', () => this.closeClassDialog());
 
     // Language dialog
     document.getElementById('apply-language').addEventListener('click', () => this.applyLanguage());
     document.getElementById('remove-language').addEventListener('click', () => this.removeLanguage());
-    document.getElementById('cancel-language').addEventListener('click', () => this.closeLanguageDialog());
-    document.getElementById('close-language-dialog').addEventListener('click', () => this.closeLanguageDialog());
 
     // Password dialog
     document.getElementById('apply-password').addEventListener('click', () => this.applyPassword());
-    document.getElementById('cancel-password').addEventListener('click', () => this.closePasswordDialog());
-    document.getElementById('close-password-dialog').addEventListener('click', () => this.closePasswordDialog());
 
     // Link dialog
     document.getElementById('apply-link').addEventListener('click', () => this.applyLink());
     document.getElementById('remove-link').addEventListener('click', () => this.removeLink());
-    document.getElementById('cancel-link').addEventListener('click', () => this.closeLinkDialog());
-    document.getElementById('close-link-dialog').addEventListener('click', () => this.closeLinkDialog());
 
     // Custom CSS modal
-    document.getElementById('close-css-modal').addEventListener('click', () => this.closeCustomCssModal());
     document.getElementById('save-custom-css').addEventListener('click', () => this.saveCustomCss());
-    document.getElementById('cancel-custom-css').addEventListener('click', () => this.closeCustomCssModal());
 
     // Style class selector
     document.getElementById('slide-style').addEventListener('change', e => {
@@ -1125,13 +1124,6 @@ class SlideEditor {
     document.getElementById('stylesheet-url').focus();
   }
 
-  // closeStylesheetDialog -- close the dialog to enter a style sheet URL
-  closeStylesheetDialog()
-  {
-    document.getElementById('stylesheet-dialog').close();
-    document.editor?.focus();
-  }
-
   // browseStylesheet -- get the result of a file selection dialog and store it
   async browseStylesheet()
   {
@@ -1145,7 +1137,8 @@ class SlideEditor {
     this.cssUrl = await this.makeAbsolute(
       document.getElementById('stylesheet-url').value, this.currentFilePath);
     this.applyCssToFrame();
-    this.closeStylesheetDialog();
+    document.getElementById('stylesheet-dialog').close();
+    document.editor?.focus();
     this.setEdited();
     await this.updateLayoutsAndTransitions();
   }
@@ -1159,13 +1152,6 @@ class SlideEditor {
     document.getElementById('open-file-url').focus();
   }
 
-  // closeOpenFileDialog -- close the dialog to open a file
-  closeOpenFileDialog()
-  {
-    document.getElementById('open-file-dialog').close();
-    document.editor?.focus();
-  }
-
   // browseOpenFile -- get the result of a file selection dialog and store it
   async browseOpenFile()
   {
@@ -1177,7 +1163,7 @@ class SlideEditor {
   async applyOpenFile()
   {
     const filePath = document.getElementById('open-file-url').value;
-    this.closeOpenFileDialog();
+    document.getElementById('open-file-dialog').close();
     if (filePath) {
       const realpath = await this.makeAbsolute(filePath);
       console.log(`applyOpenFile: realpath = ${realpath}`);
@@ -1188,6 +1174,7 @@ class SlideEditor {
 	alert('Error opening file: ' + result.error);
       }
     }
+    document.editor?.focus();
   }
 
   // openImageDialog -- show the dialog to enter an image URL
@@ -1195,13 +1182,6 @@ class SlideEditor {
   {
     document.getElementById('image-dialog').showModal();
     document.getElementById('image-url').focus();
-  }
-
-  // closeImageDialog -- close the dialog to enter a style sheet URL
-  closeImageDialog()
-  {
-    document.getElementById('image-dialog').close();
-    document.editor?.focus();
   }
 
   // browseImage -- get the result of a file selection dialog and store it
@@ -1216,7 +1196,8 @@ class SlideEditor {
   {
     const filePath = document.getElementById('image-url').value;
     const altText = document.getElementById('alt-text').value;
-    this.closeImageDialog();
+    document.getElementById('image-dialog').close();
+    document.editor?.focus();
     this.setEdited();
     this.editor.insertImage(filePath, { alt: altText });
     this.editor.saveUndoState();
@@ -1328,19 +1309,13 @@ class SlideEditor {
     document.getElementById('css-modal').showModal();
   }
 
-  // closeCustomCssModal -- handle closing of the cusom CSS dialog
-  closeCustomCssModal()
-  {
-    document.getElementById('css-modal').close();
-    document.editor?.focus();
-  }
-
   // saveCustomCss -- handle click on the save button of the custom CSS dialog
   saveCustomCss()
   {
     this.customCss = document.getElementById('custom-css-editor').value;
     this.applyCssToFrame();
-    this.closeCustomCssModal();
+    document.getElementById('css-modal').close();
+    document.editor?.focus();
   }
 
   // setSlideStyleClass -- handle click on slide layout button or menu
@@ -1469,13 +1444,6 @@ class SlideEditor {
     document.getElementById('stylesheet-url').focus();
   }
 
-  // closeSaveAsDialog -- close the dialog to enter a file name for saving to
-  closeSaveAsDialog()
-  {
-    document.getElementById('save-as-dialog').close();
-    document.editor?.focus();
-  }
-
   // browseSaveAs -- get the result of a file selection dialog
   async browseSaveAs()
   {
@@ -1490,7 +1458,8 @@ class SlideEditor {
     const filePath = document.getElementById('save-as-url').value;
     const notifications = document.getElementById('notifications')
     const notificationsText = document.getElementById('notifications-text')
-    this.closeSaveAsDialog();
+    document.getElementById('save-as-dialog').close();
+    document.editor?.focus();
     if (filePath) {
       notificationsText.innerText = '…';
       notifications.style.display = 'flex';
@@ -1873,14 +1842,6 @@ class SlideEditor {
     username.focus();
   }
 
-  // closePasswordDialog -- hide the password dialog
-  closePasswordDialog()
-  {
-    document.getElementById('password-dialog').close();
-    this.nextAction(null);
-    document.editor?.focus();
-  }
-
   // applyPassword -- use the entered username+password to save the current file
   applyPassword()
   {
@@ -1888,7 +1849,9 @@ class SlideEditor {
     const password = document.getElementById('password-dialog-password-input');
     console.log(`applyPassword() -> ${username.value}:...`);
     this.nextAction(username.value + ':' + password.value);
-    this.closePasswordDialog();
+    document.getElementById('password-dialog').close();
+    // this.nextAction(null);
+    document.editor?.focus();
   }
 
   // askPassword -- ask user for a username and password on behalf of the app
@@ -2270,15 +2233,10 @@ class SlideEditor {
     document.getElementById('link-dialog').showModal();
   }
 
-  closeLinkDialog()
+  applyLink()
   {
     document.getElementById('link-dialog').close();
     document.editor?.focus();
-  }
-
-  applyLink()
-  {
-    this.closeLinkDialog();
     if (!this.editor || this.isHtmlView) return;
 
     const url = document.getElementById('link-url').value.trim();
@@ -2291,14 +2249,12 @@ class SlideEditor {
 
   removeLink()
   {
-    if (!this.editor || this.isHtmlView) {
-      this.closeLinkDialog();
-      return;
-    }
+    document.getElementById('link-dialog').close();
+    document.editor?.focus();
+    if (!this.editor || this.isHtmlView) return;
 
     this.editor.removeLink();
     this.updateCurrentSlideContent();
-    this.closeLinkDialog();
   }
 
   formatRemoveFormat()
@@ -2761,12 +2717,6 @@ class SlideEditor {
     input.focus();
   }
 
-  closeClassDialog()
-  {
-    document.getElementById('class-dialog').close();
-    this.editor?.focus();
-  }
-
   // setClassAttribute -- helper for applyClass and removeClass
   setClassAttribute(what, className)
   {
@@ -2823,7 +2773,8 @@ class SlideEditor {
   // applyClass -- handle click on "apply" in the class dialog
   applyClass()
   {
-    this.closeClassDialog();
+    document.getElementById('class-dialog').close();
+    this.editor?.focus();
     if (!this.editor || this.isHtmlView) return;
 
     const className = document.getElementById('class-input').value.trim();
@@ -2834,7 +2785,8 @@ class SlideEditor {
   // removeClass -- handle click on "remove class" button in the class dialog
   removeClass()
   {
-    this.closeClassDialog();
+    document.getElementById('class-dialog').close();
+    this.editor?.focus();
     if (!this.editor || this.isHtmlView) return;
 
     const what = document.getElementById('class-what').value;
@@ -2859,13 +2811,6 @@ class SlideEditor {
     document.getElementById('language-what').value = what;
     document.getElementById('language-dialog').showModal();
     input.focus();
-  }
-
-  // closeLanguageDialog -- close the langue dialog
-  closeLanguageDialog()
-  {
-    document.getElementById('language-dialog').close();
-    this.editor?.focus();
   }
 
   // setLangAttribute -- helper for applyLanguage and removeLanguage
@@ -2944,7 +2889,8 @@ class SlideEditor {
   // applyLanguage -- set the chosen language on the element indicated by what
   applyLanguage()
   {
-    this.closeLanguageDialog();
+    document.getElementById('language-dialog').close();
+    this.editor?.focus();
     if (!this.editor || this.isHtmlView) return;
 
     const lang = document.getElementById('language-input').value.trim().
@@ -2956,7 +2902,8 @@ class SlideEditor {
   // removeLanguage -- handle click on Remove Language button
   removeLanguage()
   {
-    this.closeLanguageDialog();
+    document.getElementById('language-dialog').close();
+    this.editor?.focus();
     if (!this.editor || this.isHtmlView) return;
 
     const what = document.getElementById('language-what').value;
@@ -2983,8 +2930,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      if (file.name.match(/\.html?$/i)) {
-	editorInstance.fileToOpen(file.path);
+      const path = window.electronAPI.getPath(file);
+      if (path.match(/\.html?$/i)) {
+	editorInstance.fileToOpen(path);
       } else {
         alert('Please drop an HTML file');
       }
