@@ -76,5 +76,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     canUndo, canRedo),
   setTitle: (title) => ipcRenderer.send('a-set-title', title),
   replyPassword: (auth) => ipcRenderer.send('a-reply-password', auth),
+  setDefaultTransition: (transition) => ipcRenderer.send(
+    'a-set-default-transition', transition),
+  setSlideTransition: (transition) => ipcRenderer.send(
+    'a-set-slide-transition', transition),
+
   getPath: (file) => webUtils.getPathForFile(file)
 });
