@@ -119,6 +119,9 @@ class SlideEditor {
           <section id="slide-wrapper"></section>
         </body>
       </html>`;
+
+    // Set checkbox in the transitions menu on the "default" item
+    window.electronAPI.setDefaultTransition(null);
   }
 
   // copySlideDeckData -- (deep) copy of slide deck contents
@@ -439,7 +442,7 @@ class SlideEditor {
     if (slide.styleClass) classes += ' ' + slide.styleClass;
     if (slide.slideClear) classes += ' clear';
     if (slide.slideTextfit) classes += ' textfit';
-    // if (slide.transition) classes += ' ' + slide.transition;
+    if (slide.transition) classes += ' ' + slide.transition;
     if (slide.otherClasses) classes += ' ' + slide.otherClasses;
     return classes;
   }
@@ -1251,7 +1254,10 @@ class SlideEditor {
     else if (!Array.isArray(layout.class)) layout.class = [layout.class];
 
     // Update the menus
-    window.electronAPI.updateLayoutAndTransitionsMenus(this.cssUrlInfo);
+    await window.electronAPI.updateLayoutAndTransitionsMenus(this.cssUrlInfo);
+    window.electronAPI.setDefaultTransition(this.defaultTransition);
+    const currentSlide = this.slides[this.currentSlideIndex];
+    window.electronAPI.setSlideTransition(currentSlide.transition);
 
     // Update the dropdown menu of slide layouts
     const styleSelect = document.getElementById('slide-style');
@@ -1976,14 +1982,14 @@ class SlideEditor {
       html += '<script src="https://www.w3.org/Talks/Tools/b6plus/b6plus.js"></script>\n';
 
     // Add default transition to body if set
-    const bodyClass = doc.defaultTransition ? ` class="b6plus ${doc.defaultTransition}"` : ' class="b6plus"';
+    const bodyClass = doc.defaultTransition ? ` class="${doc.defaultTransition}"` : '';
     html += `</head>\n<body${bodyClass}>\n`;
 
     doc.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
       const lang = typeof slide.lang === 'string'
 	    ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
-      html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">`;
+      html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">\n`;
       // html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
       html += slide.content + '</section>\n';
     });
@@ -2055,13 +2061,12 @@ class SlideEditor {
     document.getElementById('include-b6plus').checked = this.includeB6plus;
 
     // Extract default transition from body
-    this.defaultTransition = '';
+    this.defaultTransition = null;
     for (const t of this.cssUrlInfo.transitions)
       if (t.class
 	  && t.class.split(' ').every(c => doc.body.classList.contains(c))) {
 	this.defaultTransition = t.class;
 	console.log(`default transition "${t.class}"`);
-	window.electronAPI.setDefaultTransition(t.class);
 	break;
       }
 
@@ -2086,7 +2091,7 @@ class SlideEditor {
       if (textfit) section.classList.remove('textfit');
 
       // Find the slide's transition, if any, and remove it from the classes.
-      let transition = '';
+      let transition = null;
       for (const t of this.cssUrlInfo.transitions)
 	if (t.class
 	    && t.class.split(' ').every(c => section.classList.contains(c)))
