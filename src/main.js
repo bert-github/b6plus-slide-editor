@@ -571,6 +571,8 @@ async function updateLayoutAndTransitionsMenus(event, json)
   // items), it can only be replaced. So instead we update the template
   // and create a new application menu from that.
 
+  console.log('updateLayoutAndTransitionsMenus');
+
   // Find the Slide menu
   let slideMenu;
   for (let i = 0; i < template.length && !slideMenu; i++)
@@ -616,7 +618,7 @@ async function updateLayoutAndTransitionsMenus(event, json)
 	const c = h.class;
 	defTransMenu.submenu.push({
 	  label: n,
-	  id: 'default-transition-' + (c || 'default'),
+	  id: 'default-transition-' + c.replaceAll(/ /g, '_'),
 	  type: 'checkbox',
 	  click: () => mainWindow.webContents.send('r-set-default-transition', c)
 	});
@@ -640,7 +642,7 @@ async function updateLayoutAndTransitionsMenus(event, json)
 	const c = h.class;
 	slideTransMenu.submenu.push({
 	  label: n,
-	  id: 'slide-transition-' + (c || 'default'),
+	  id: 'slide-transition-' + c.replaceAll(/ /g, '_'),
 	  type: 'checkbox',
 	  click: () => mainWindow.webContents.send('r-set-slide-transition', c)
 	});
@@ -694,9 +696,12 @@ function setDefaultTransition(event, chosenTransition)
   const defTransItem = menu.getMenuItemById('default-transitions');
   if (!defTransItem || !defTransItem.submenu) return;		// Bug?
   console.log(`setDefaultTransition "${chosenTransition}"`);
-  const id = 'default-transition-' + (chosenTransition || 'default');
-  for (const item of defTransItem.submenu.items)
+  chosenTransition = chosenTransition?.replaceAll(/ /g, '_');
+  const id = 'default-transition-' + (chosenTransition ?? '');
+  for (const item of defTransItem.submenu.items) {
     item.checked = item.id === id;
+    console.log(`${item.label} ${item.id} ${item.id === id}`);
+  }
 }
 
 // setSlideTransition -- add/remove a checkbox in the slide transitions menu
@@ -706,9 +711,12 @@ function setSlideTransition(event, chosenTransition)
   const slideTransItem = menu.getMenuItemById('slide-transitions');
   if (!slideTransItem || !slideTransItem.submenu) return; // Bug?
   console.log(`setSlideTransition "${chosenTransition}"`);
-  const id = 'slide-transition-' + (chosenTransition || 'default');
-  for (const item of slideTransItem.submenu.items)
+  chosenTransition = chosenTransition?.replaceAll(/ /g, '_');
+  const id = 'slide-transition-' + (chosenTransition ?? '');
+  for (const item of slideTransItem.submenu.items) {
     item.checked = item.id === id;
+    console.log(`${item.label} ${item.id} ${item.id === id}`);
+  }
 }
 
 // Handle response from unsaved changes check
