@@ -50,6 +50,14 @@ const template = [
       { label: 'Save As...',
         accelerator: 'CmdOrCtrl+Shift+S',
         click: () => mainWindow.webContents.send('r-save-as') },
+      { label: 'Revert',
+	click: () => mainWindow.webContents.send('r-revert') },
+      { type: 'separator' },
+      { label: 'Document properties',
+	click: () => mainWindow.webContents.send('r-properties') },
+      { type: 'separator' },
+      { label: 'Print',
+	click: () => mainWindow.webContents.send('r-print') },
       ...(process.platform !== 'darwin' ? [
         { type: 'separator' },
         { label: 'Quit',
@@ -414,9 +422,10 @@ async function writeFile(event, filePath, content, auth = null)
       console.log(`  -> error: ${err.message}`);
       return { success: false, error: err.message };
     }
-  } else {
+  } else {			// Local file
     try {
       const path = filePath.replace(/^file:\/\//i, '');
+      try { fs.renameSync(path, path + '~') } catch (err) {/* ignore */}
       fs.writeFileSync(path, content);
       console.log(`  -> success`);
       return { success: true, url: path };
@@ -698,10 +707,8 @@ function setDefaultTransition(event, chosenTransition)
   console.log(`setDefaultTransition "${chosenTransition}"`);
   chosenTransition = chosenTransition?.replaceAll(/ /g, '_');
   const id = 'default-transition-' + (chosenTransition ?? '');
-  for (const item of defTransItem.submenu.items) {
+  for (const item of defTransItem.submenu.items)
     item.checked = item.id === id;
-    console.log(`${item.label} ${item.id} ${item.id === id}`);
-  }
 }
 
 // setSlideTransition -- add/remove a checkbox in the slide transitions menu
@@ -713,10 +720,8 @@ function setSlideTransition(event, chosenTransition)
   console.log(`setSlideTransition "${chosenTransition}"`);
   chosenTransition = chosenTransition?.replaceAll(/ /g, '_');
   const id = 'slide-transition-' + (chosenTransition ?? '');
-  for (const item of slideTransItem.submenu.items) {
+  for (const item of slideTransItem.submenu.items)
     item.checked = item.id === id;
-    console.log(`${item.label} ${item.id} ${item.id === id}`);
-  }
 }
 
 // Handle response from unsaved changes check
