@@ -380,24 +380,52 @@ body {
 }
 
 .modal-content div {
-    padding: 1em 1.25em;
+    padding: 1rem 1.25rem;
 }
 
 .modal-content label {
-    display: block;
-    font-weight: bold;
-    margin: 0.5em 0;
+    display: flex;
+    /* font-weight: bold; */
+    margin: 0.5rem 0;
+    gap: 1rem;
+    align-items: center;
 }
 
-.modal-content input[type=text], .modal-content input[type=password] {
-    width: 100%;
-    margin: 0.5rem 0;
+.modal-content label + label {
+    border-top: thin solid silver;
+    padding-top: 0.5rem;
+}
+
+.modal-content input[type=text], .modal-content input[type=password],
+.modal-content input[type=number] {
+    margin: 0.5rem 0 0.5rem auto;
     padding: 0.5rem;
     display: block;
+    background: #fed;
+    border: thin solid #edc;
+}
+
+.modal-content input {
+    margin-left: auto;
+}
+
+.modal-content input[type=text]:not([size]),
+.modal-content input[type=password]:not([size]) {
+    flex: 100% 1 1;
+    width: auto;
 }
 
 .modal-content button {
-    padding: 0.5em 1em;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0
+}
+
+.modal-content label button {
+    padding: 0.5rem;
+}
+
+#default-timing, input[type=number] {
+    text-align: right;
 }
 
 .modal-header {
@@ -476,6 +504,14 @@ body {
     body {
         /* background: #1e1e1e; */
         /* color: #e0e0e0; */
+    }
+
+    :link {
+	color: #aef;
+    }
+
+    :visited {
+	color: #ead;
     }
 
     .toolbar {
@@ -647,11 +683,16 @@ body {
         color: #fff;
     }
 
-    .modal input[type="text"],
-    .modal select {
-        background: #3a3a3a;
-        color: #e0e0e0;
-        border-color: #555;
+    .modal input[type="text"] {
+        /* background: #3a3a3a; */
+        /* color: #e0e0e0; */
+        /* border-color: #555; */
+    }
+
+    .modal-content input[type=text], .modal-content input[type=password],
+    .modal-content input[type=number] {
+        background: hsl(30deg 30% 10%);
+	border-color: hsl(30deg 30% 25%);
     }
 
     .modal-footer {
