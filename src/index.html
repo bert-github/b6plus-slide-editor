@@ -177,10 +177,14 @@
           <button id="close-stylesheet-dialog" command="request-close"
 		  commandfor="stylesheet-dialog" class="close-button">✕</button>
         </div>
-        <div>
-          <label for="stylesheet-url">CSS URL or file path:</label>
-          <input type="text" id="stylesheet-url" placeholder="https://example.com/styles.css or /path/to/styles.css">
-          <button id="browse-stylesheet" title="Browse for local CSS file">📁 Browse...</button>
+        <div class="modal-body">
+          <label>
+	    CSS URL or file path
+            <input type="text" id="stylesheet-url"
+	      placeholder="https://example.com/styles.css or /path/to/styles.css">
+            <button id="browse-stylesheet" title="Browse for local CSS file"
+	      >📁 Browse…</button>
+	    </label>
         </div>
         <div class="modal-footer">
           <button id="apply-stylesheet">Apply</button>
@@ -198,9 +202,12 @@
           <button id="close-class-dialog" command="request-close"
 		  commandfor="class-dialog" class="close-button">✕</button>
         </div>
-        <div>
-          <label for="class-input">Class name(s):</label>
-          <input type="text" id="class-input" placeholder="my-class another-class">
+        <div class="modal-body">
+          <label>
+	    Class name(s)
+            <input type="text" id="class-input"
+	      placeholder="my-class another-class">
+	    </label>
 	  <input id="class-what" type="hidden">
           <p><small>Separate multiple classes with spaces</small></p>
         </div>
@@ -221,14 +228,16 @@
           <button id="close-language-dialog" command="request-close"
 		  commandfor="language-dialog" class="close-button">✕</button>
         </div>
-        <div>
+        <div class="modal-body">
           <p><small>A language tag according
             to <a target="_blank" href="https://www.rfc-editor.org/info/bcp47"
             >BCP47</a></small></p>
-          <label for="language-input">Language code:</label>
-          <input type="text" id="language-input"
-		 placeholder="en-us, en-gb, zh-hans, ja, fr..."
-		 pattern="[a-zA-Z]{2,8}(-[a-zA-Z0-9]+)*">
+          <label>
+	    Language code
+            <input type="text" id="language-input"
+	      placeholder="en-us, en-gb, zh-hans, ja, fr..."
+	      pattern="[a-zA-Z]{2,8}(-[a-zA-Z0-9]+)*">
+	  </label>
 	  <input id="language-what" type="hidden">
         </div>
         <div class="modal-footer">
@@ -248,9 +257,11 @@
           <button id="close-link-dialog" command="request-close"
 		  commandfor="link-dialog" class="close-button">✕</button>
         </div>
-        <div>
-          <label for="link-url">URL:</label>
-          <input type="text" id="link-url" placeholder="https://example.com">
+        <div class="modal-body">
+          <label>
+	    URL
+            <input type="text" id="link-url" placeholder="https://example.com">
+	  </label>
         </div>
         <div class="modal-footer">
           <button id="apply-link">Apply</button>
@@ -269,12 +280,18 @@
           <button id="close-image-dialog" command="request-close"
 		  commandfor="image-dialog" class="close-button">✕</button>
         </div>
-        <div>
-          <label for="image-url">Image URL or file path:</label>
-          <input type="text" id="image-url" placeholder="https://example.com/image.jpg or /path/to/image.jpg">
-          <button id="browse-image" title="Browse for local image file">📁 Browse...</button>
-          <label for="alt-text">Text alternative (‘alt text’):</label>
-          <input type="text" id="alt-text" placeholder="">
+        <div class="modal-body">
+          <label>
+	    Image URL or file path
+            <input type="text" id="image-url"
+	      placeholder="https://example.com/image.jpg or /path/to/image.jpg">
+            <button id="browse-image"
+	      title="Browse for local image file">📁 Browse…</button>
+	    </label>
+          <label>
+	    Text alternative (‘alt text’)
+            <input type="text" id="alt-text" placeholder="">
+	  </label>
         </div>
         <div class="modal-footer">
           <button id="apply-image">Apply</button>
@@ -292,10 +309,14 @@
           <button id="close-open-file-dialog" command="request-close"
 		  commandfor="open-file-dialog" class="close-button">✕</button>
         </div>
-        <div>
-          <label for="open-file-url">URL or file path:</label>
-          <input type="text" id="open-file-url" placeholder="https://example.com/slides.html or /path/to/slides.html">
-          <button id="browse-open-file" title="Browse for local file">📁 Browse...</button>
+        <div class="modal-body">
+          <label>
+	    URL or file path
+            <input type="text" id="open-file-url"
+	      placeholder="https://example.com/slides.html or /path/to/slides.html">
+            <button id="browse-open-file" title="Browse for local file"
+	      >📁 Browse…</button>
+	  </label>
         </div>
         <div class="modal-footer">
           <button id="apply-open-file">Apply</button>
@@ -313,16 +334,111 @@
           <button id="close-save-as-dialog" command="request-close"
 		  commandfor="save-as-dialog" class="close-button">✕</button>
         </div>
-        <div>
-          <label for="save-as-url">URL or file path:</label>
-          <input type="text" id="save-as-url" placeholder="https://example.com/slides.html or /path/to/slides.html">
-          <button id="browse-save-as" title="Browse for local file">📁 Browse...</button>
+        <div class="modal-body">
+          <label>
+	    URL or file path
+            <input type="text" id="save-as-url"
+	      placeholder="https://example.com/slides.html or /path/to/slides.html">
+            <button id="browse-save-as" title="Browse for local file"
+	      >📁 Browse…</button>
+	  </label>
         </div>
         <div class="modal-footer">
           <button id="apply-save-as">Apply</button>
           <button id="cancel-save-as" command="request-close"
 		  commandfor="save-as-dialog">Cancel</button>
         </div>
+      </div>
+    </dialog>
+
+    <!-- Revert to loaded file dialog -->
+    <dialog id="revert-dialog" class="modal">
+      <div class="modal-content">
+	<div class="modal-header">
+	  <h3>Revert</h3>
+	  <button id="close-revert-dialog" command="request-close"
+	    commandfor="revert-dialog" class="close-button">✕</button>
+	</div>
+	<div class="modal-body">
+	  <p>Revert to <b id="revert-url"></b> ?</p>
+	  <p>Any edits will be lost</p>
+	</div>
+	<div class="modal-footer">
+          <button id="apply-revert">Revert</button>
+          <button id="cancel-revert" command="request-close"
+	    commandfor="revert-dialog">Cancel</button>
+	</div>
+      </div>
+    </dialog>
+
+    <!-- Document properties dialog -->
+    <dialog id="properties-dialog" class="modal">
+      <div class="modal-content">
+	<div class="modal-header">
+	  <h3>Properties of the slide deck</h3>
+	  <button id="close-properties-dialog" command="request-close"
+		  commandfor="properties-dialog" class="close-button">✕</button>
+	</div>
+	<div class="modal-body">
+	  <label>
+	    <span>Language (a language tag conforming
+	    to <a target="_blank"
+	    href="https://www.rfc-editor.org/info/bcp47"
+	    >BCP47</a>)</span>
+	    <input type="text" id="language-input2" size="21"
+	      placeholder="en-us, zh-hans, ja, fr..."
+	      pattern="[a-zA-Z]{2,8}(-[a-zA-Z0-9]+)*">
+	  </label>
+	  <label>
+	    Title
+	    <input type="text" id="title"
+	      placeholder="Insert a title for the slide deck here">
+	  </label>
+	  <label>
+	    CSS URL or file path
+	    <input type="text" id="stylesheet-url2"
+	      placeholder="https://example.com/styles.css or /path/to/styles.css">
+	    <button id="browse-stylesheet2" title="Browse for local CSS file"
+	      >📁 Browse…</button>
+	  </label>
+          <label>
+	    Include b6+ script
+            <input type="checkbox" id="include-b6plus2" checked>
+	  </label>
+	  <label>
+	    Default slide transition (empty for no transition
+	    <input type="text" id="default-transition" size="20">
+	  </label>
+	  <label>
+	    Hide the mouse pointer after a number of seconds (-1 to
+	    keep the pointer visible)
+	    <input type="number" min="-1" max="99" step="0.5" id="hidemouse"
+	      size="6">
+	  </label>
+	  <label>
+	    Ignore mouse clicks (unchecked = mouse clicks advance the
+	    slide show)
+	    <input type="checkbox" id="noclick">
+	  </label>
+	  <label>
+	    Slide show is a loop
+	    <input type="checkbox" id="loop">
+	  </label>
+	  <label>
+	    Automatically advance slides after a number of seconds,
+	    minutes:seconds, or hours:minutes:seconds (0 = disabled)
+	    Can be overridden on each slide
+	    <input type="text" id="default-timing" size="9"
+	      pattern="(?:[0-9]+|[0-9]*\.[0-9]+)[smh]?|[0-9]+:[0-5][0-9]|[0-9]+:[0-5][0-9]:[0-5][0-9]"
+	      placeholder="e.g., 0 or 5 or 0:05 or 2:30:00"
+	      title="Format is a number optionally followed by ‘h’, ‘m’ or ‘s’; or minutes and seconds as ‘mmm:ss’; or hours, minutes and seconds as ‘hhh:mm:ss’">
+	  </label>
+	</div>
+	<div class="modal-footer">
+          <button id="apply-properties">Apply</button>
+          <button id="cancel-properties" command="request-close"
+		  commandfor="properties-dialog">Cancel</button>
+	</div>
       </div>
     </dialog>
 
@@ -335,13 +451,17 @@
 	  <button id="close-password-dialog" command="request-close"
 		  commandfor="password-dialog" class="close-button">✕</button>
 	</div>
-	<div>
+	<div class="modal-body">
 	  <p>URL: <span id="password-dialog-url"></span></p>
 	  <p>Realm: <span id="password-dialog-realm"></span></p>
-	  <label for="password-dialog-username-input">User name:</label>
-          <input type="text" id="password-dialog-username-input">
-	  <label for="password-dialog-password-input">Password:</label>
-          <input type="password" id="password-dialog-password-input">
+	  <label>
+	    User name
+            <input type="text" id="password-dialog-username-input">
+	    </label>
+	  <label>
+	    Password
+            <input type="password" id="password-dialog-password-input">
+	    </label>
         </div>
         <div class="modal-footer">
           <button id="apply-password">Apply</button>
