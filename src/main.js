@@ -53,7 +53,7 @@ const template = [
       { label: 'Revert',
 	click: () => mainWindow.webContents.send('r-revert') },
       { type: 'separator' },
-      { label: 'Document properties',
+      { label: 'Properties',
 	click: () => mainWindow.webContents.send('r-properties') },
       { type: 'separator' },
       { label: 'Print',
