@@ -128,7 +128,8 @@ class SlideEditor {
   copySlideDeckData(from, to)
   {
     for (const property of ['slides', 'cssUrl', 'currentFilePath',
-      'includeB6plus', 'defaultTransition', 'lang', 'customCss'])
+      'includeB6plus', 'defaultTransition', 'lang', 'customCss', 'hidemouse',
+      'noclick', 'loop', 'defaultTiming', 'documentTitle'])
       to[property] = structuredClone(from[property]);
   }
 
@@ -195,10 +196,18 @@ class SlideEditor {
   // setEdited -- flag current document as (not) edited and update window title
   setEdited(edited = true)
   {
+    let title;
+
     this.hasUnsavedChanges = edited;
-    if (this.currentFilePath)
-      window.electronAPI.setTitle(this.currentFilePath
-	  + (edited ? ' (edited)' : ''));
+
+    if (this.documentTitle) title = this.documentTitle;
+    else if (this.currentFilePath) title = this.currentFilePath;
+    title = this.documentTitle || this.currentFilePath || '';
+    if (title) title += ' ';
+    if (edited) title += '(edited)';
+    if (title) title += ' | ';
+    title += 'B6+ slide editor';
+    window.electronAPI.setTitle(title);
   }
 
   // escapeHTML -- escape delimiters (<>&") for HTML
@@ -435,6 +444,19 @@ class SlideEditor {
     }
   }
 
+  // makeBodyClassName -- construct the class attribute for the body tag of doc
+  makeBodyClassName(doc = this)
+  {
+    let c = '';
+
+    if (doc.defaultTransition) c += doc.defaultTransition;
+    if (doc.hidemouse === '5') c += ' hidemouse';
+    else if ((doc.hidemouse ?? -1) >= 0) c += ` hidemouse=${doc.hidemouse}`;
+    if (doc.noclick) c += ' noclick';
+    if (doc.loop) c += ' loop';
+    return c;
+  }
+
   // makeClassName -- construct the class attribute for a slide
   makeClassName(slide)
   {
@@ -578,6 +600,9 @@ class SlideEditor {
     window.electronAPI.onOpenFile(() => this.openOpenFileDialog());
     window.electronAPI.onSaveFile(() => this.saveFile());
     window.electronAPI.onSaveAs(() => this.openSaveAsDialog());
+    window.electronAPI.onRevert(() => this.openRevertDialog());
+    window.electronAPI.onPrint(() => this.openPrintDialog());
+    window.electronAPI.onProperties(() => this.openPropertiesDialog());
 
     window.electronAPI.onAddSlide(() => this.addSlide());
     window.electronAPI.onAddNotes(() => this.addNotes());
@@ -694,6 +719,13 @@ class SlideEditor {
     // Save As dialog
     document.getElementById('apply-save-as').addEventListener('click', () => this.applySaveAs());
     document.getElementById('browse-save-as').addEventListener('click', () => this.browseSaveAs());
+
+    // Revert dialog
+    document.getElementById('apply-revert').addEventListener('click', () => this.applyRevert());
+
+    // Properties dialog
+    document.getElementById('apply-properties').addEventListener('click', () => this.applyProperties());
+    document.getElementById('browse-stylesheet2').addEventListener('click', () => this.browseStylesheet());
 
     // Class dialog
     document.getElementById('apply-class').addEventListener('click', () => this.applyClass());
@@ -955,7 +987,7 @@ class SlideEditor {
     html += 'section.slide { margin: 0 }';
     html += '</style>';
 
-    html += '</head><body class="b6plus">';
+    html += `</head><body class="b6plus ${this.makeBodyClassName()}">`;
 
     const classes = this.makeClassName(slide);
     const id = slide.id ? ` id="${slide.id}"` : '';
@@ -963,7 +995,7 @@ class SlideEditor {
 	  ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
 
     html += `<section${id}${sLang} class="${classes}"`;
-    html += ` style="counter-reset: slide ${slideNumber - 1}" inert>`;
+    html += ` style="counter-reset: slide ${slideNumber - 1}">`;
     html += `${slide.content}</section>`;
     html += '</body></html>';
 
@@ -1079,7 +1111,7 @@ class SlideEditor {
 
     if (this.isHtmlView) {
       this.slides[this.currentSlideIndex].content =
-	document.getElementById('html-editor').value;
+	document.getElementById('html-editor').value.trim();
     } else {
       if (this.editor)
 	this.slides[this.currentSlideIndex].content =
@@ -1110,7 +1142,7 @@ class SlideEditor {
 
       const currentSlide = this.slides[this.currentSlideIndex];
       document.getElementById('html-editor').value =
-	currentSlide ? currentSlide.content : '';
+	currentSlide ? currentSlide.content.replace(/^\n/, '') : '';
     } else {
       wysiwygContainer.style.display = 'flex';
       htmlContainer.style.display = 'none';
@@ -1135,19 +1167,27 @@ class SlideEditor {
   async browseStylesheet()
   {
     const filePath = await window.electronAPI.selectCssFile();
-    if (filePath) document.getElementById('stylesheet-url').value = filePath;
+    if (filePath) {
+      // Set both in the style sheet dialog and in the properties
+      // dialog, because this method is used in both dialogs.
+      document.getElementById('stylesheet-url').value = filePath;
+      document.getElementById('stylesheet-url2').value = filePath;
+    }
   }
 
   // applyStylesheet -- handle the closing of the style sheet URL dialog
   async applyStylesheet()
   {
-    this.cssUrl = await this.makeAbsolute(
+    const newCssUrl = await this.makeAbsolute(
       document.getElementById('stylesheet-url').value, this.currentFilePath);
-    this.applyCssToFrame();
     document.getElementById('stylesheet-dialog').close();
+    if (newCssUrl !== this.cssUrl) {
+      this.cssUrl = newCssUrl;
+      this.applyCssToFrame();
+      this.setEdited();
+      await this.updateLayoutsAndTransitions();
+    }
     document.editor?.focus();
-    this.setEdited();
-    await this.updateLayoutsAndTransitions();
   }
 
   // openOpenFileDialog -- show the dialog to open a file
@@ -1182,6 +1222,43 @@ class SlideEditor {
       }
     }
     document.editor?.focus();
+  }
+
+  // openRevertDialog -- show the dialog about reverting to the loaded file
+  openRevertDialog()
+  {
+    if (!this.currentFilePath) {
+      alert('Cannot revert. Current document was not loaded from a file.');
+    } else {
+      document.getElementById('revert-url').innerText =
+	this.currentFilePath.replace(/^file:\/\//i, '');
+      document.getElementById('revert-dialog').showModal();
+      document.getElementById('cancel-revert').focus();
+    }
+  }
+
+  // applyRevert -- handle click on OK in the revert dialog
+  async applyRevert()
+  {
+    document.getElementById('revert-dialog').close();
+    const filePath = this.currentFilePath;
+    if (filePath) {
+      const realpath = await this.makeAbsolute(filePath);
+      console.log(`applyRevert: realpath = ${realpath}`);
+      const result = await this.readFileWithAuth(realpath);
+      if (result.success) {
+	this.fileOpened({ url: result.url, body: result.body });
+      } else {
+	alert('Error opening file: ' + result.error);
+      }
+    }
+    document.editor?.focus();
+  }
+
+  // openPrintDialog -- show the dialog for printing the current slide deck
+  openPrintDialog()
+  {
+    alert('Sorry, not yet implemented.');
   }
 
   // openImageDialog -- show the dialog to enter an image URL
@@ -1440,7 +1517,6 @@ class SlideEditor {
     this.slides = [];
     this.currentSlideIndex = 0;
     this.currentFilePath = null;
-    window.electronAPI.setTitle(null);
     this.addInitialSlide();
   }
 
@@ -1462,7 +1538,7 @@ class SlideEditor {
     document.getElementById('save-as-url').value =
       this.currentFilePath?.replace(/^file:\/\//i, '') ?? '';
     document.getElementById('save-as-dialog').showModal();
-    document.getElementById('stylesheet-url').focus();
+    document.getElementById('save-as-url').focus();
   }
 
   // browseSaveAs -- get the result of a file selection dialog
@@ -1488,6 +1564,94 @@ class SlideEditor {
       await this.writeToFile(realpath);
       notifications.style.display = 'none';
     }
+  }
+
+  // openPropertiesDialog -- open the document properties dialog
+  openPropertiesDialog()
+  {
+    document.getElementById('language-input2').value = this.lang ?? '';
+    document.getElementById('title').value = this.documentTitle ?? '';
+    document.getElementById('stylesheet-url2').value =
+      this.cssUrl?.replace(/^file:\/\//i, '') || '';
+    document.getElementById('include-b6plus2').checked = this.includeB6plus;
+    document.getElementById('default-transition').value =
+      this.defaultTransition ?? '';
+    document.getElementById('hidemouse').value =
+      (this.hidemouse ?? -1) >= 0 ? this.hidemouse : -1;
+    document.getElementById('noclick').checked = this.noclick === true;
+    document.getElementById('loop').checked = this.loop === true;
+    document.getElementById('default-timing').value = this.defaultTiming || '0';
+    document.getElementById('properties-dialog').showModal();
+    document.getElementById('language-input2').focus();
+  }
+
+  // applyProperties -- handle the "apply" button in the properties dialog
+  applyProperties()
+  {
+    let isEdited = false;
+
+    document.getElementById('properties-dialog').close();
+
+    const newLang = document.getElementById('language-input2').value;
+    if (this.lang !== newLang) {
+      this.lang = newLang;
+      isEdited = true;
+    }
+
+    const newTitle = document.getElementById('title').value;
+    if (this.documentTitle !== newTitle) {
+      this.documentTitle = newTitle;
+      isEdited = true;
+    }
+
+    const newCssUrl = this.absolute(
+      document.getElementById('stylesheet-url2').value, this.currentFilePath);
+    if (newCssUrl !== this.cssUrl) {
+      this.cssUrl = newCssUrl;
+      this.applyCssToFrame();
+      isEdited = true;
+      /*await*/ this.updateLayoutsAndTransitions();
+    }
+
+    const newIncludeB6plus = document.getElementById('include-b6plus2').checked;
+    if (this.includeB6plus !== newIncludeB6plus) {
+      this.includeB6plus = newIncludeB6plus;
+      isEdited = true;
+    }
+
+    const newDefaultTrans = document.getElementById('default-transition').value;
+    if (this.defaultTransition !== newDefaultTrans) {
+      this.defaultTransition = newDefaultTrans;
+      isEdited = true;
+    }
+
+    const newHidemouse = document.getElementById('hidemouse').value.trim();
+    const newHidemouseValue = newHidemouse < 0 ? null : newHidemouse;
+    if (this.hidemouse !== newHidemouseValue) {
+      this.hidemouse = newHidemouseValue;
+      isEdited = true;
+    }
+
+    const newNoclick = document.getElementById('noclick').checked;
+    if ((this.noclick ?? false) !== newNoclick) {
+      this.noclick = newNoclick;
+      isEdited = true;
+    }
+
+    const newLoop = document.getElementById('loop').checked;
+    if ((this.loop ?? false) !== newLoop) {
+      this.loop = newLoop;
+      isEdited = true;
+    }
+
+    const newTiming = document.getElementById('default-timing').value;
+    if (this.defaultTiming !== newTiming) {
+      this.defaultTiming = newTiming;
+      isEdited = true;
+    }
+
+    if (isEdited) this.setEdited();
+    document.editor?.focus();
   }
 
   // getOrigin -- get the "origin" (protocol, host and port) of a path or URL
@@ -1555,7 +1719,7 @@ class SlideEditor {
 
     console.log(`readFileWithAuth(${url},...)`);
     result = await window.electronAPI.readFile(url);
-    console.log(`- ${JSON.stringify(result)}`);
+    console.log(`- ${JSON.stringify(result, ['success','url'])}`);
 
     // If authentication is requested, see if we have a password or
     // ask the user for one. Repeat until we have the password works
@@ -1577,7 +1741,7 @@ class SlideEditor {
       } else {			// Try with this password
 	console.log(`- Trying new authentication ${auth.substring(0, 5)}...`);
 	result = await window.electronAPI.readFile(url, auth);
-	console.log(`- ${JSON.stringify(result)}`);
+	console.log(`- ${JSON.stringify(result, ['success','url'])}`);
         // If the password worked, remember it. If not, forget it. (It
 	// may already have been entered or deleted, but that is OK.)
 	if (result.success) this.auths.set(key, auth);
@@ -1928,7 +2092,7 @@ class SlideEditor {
     let html = `<!DOCTYPE html>\n<html${lang}>\n<head>\n`;
     html += '<meta charset=UTF-8>\n';
     html += '<meta name=viewport content="width=device-width,initial-scale=1.0">\n';
-    html += '<title>Slide Deck</title>\n';
+    html += `<title>${this.documentTitle || 'Slide Deck'}</title>\n`;
 
     // Add base tag if we have a current file directory
     if (realfile) html += `<base href="${realfile}">\n`;
@@ -1944,9 +2108,13 @@ class SlideEditor {
       html += '<script src="https://www.w3.org/Talks/Tools/b6plus/b6plus.js"></script>\n';
     }
 
-    // Add default transition to body if set
-    const bodyClass = this.defaultTransition ? `b6plus ${this.defaultTransition}` : 'b6plus';
-    html += `</head>\n<body class="${bodyClass}">\n`;
+    // Add default transition and other options to body
+    html += '</head>\n<body';
+    const bodyClass = this.makeBodyClassName();
+    if (bodyClass) html += ` class="${bodyClass}"`;
+    if (this.defaultTiming && this.defaultTiming !== '0')
+      html += ` data-timing="${this.defaultTiming}"`;
+    html += '>\n';
 
     this.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
@@ -1970,7 +2138,7 @@ class SlideEditor {
     let html = `<!DOCTYPE html>\n<html${lang}>\n<head>\n`;
     html += '<meta charset="UTF-8">\n';
     html += '<meta name="viewport" content="width=device-width,initial-scale=1.0">\n';
-    html += '<title>Slide Deck</title>\n';
+    html += `<title>${doc.documentTitle ?? ''}</title>\n`;
 
     if (doc.cssUrl)
       html += `<link rel="stylesheet" href="${doc.cssUrl}">\n`;
@@ -1981,15 +2149,19 @@ class SlideEditor {
     if (doc.includeB6plus)
       html += '<script src="https://www.w3.org/Talks/Tools/b6plus/b6plus.js"></script>\n';
 
-    // Add default transition to body if set
-    const bodyClass = doc.defaultTransition ? ` class="${doc.defaultTransition}"` : '';
-    html += `</head>\n<body${bodyClass}>\n`;
+    // Add default transition and other options to body
+    html += '</head>\n<body';
+    const bodyClass = this.makeBodyClassName(doc);
+    if (bodyClass) html += ` class="${bodyClass}"`;
+    if (doc.defaultTiming && doc.defaultTiming !== '0')
+      html += ` data-timing="${doc.defaultTiming}"`;
+    html += '>\n';
 
     doc.slides.forEach(slide => {
       const id = slide.id ? ` id="${slide.id}"` : '';
       const lang = typeof slide.lang === 'string'
 	    ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
-      html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">\n`;
+      html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">`;
       // html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
       html += slide.content + '</section>\n';
     });
@@ -2044,6 +2216,9 @@ class SlideEditor {
     // attribute.)
     this.lang = doc.documentElement.getAttribute('lang');
 
+    // Extract the title
+    this.documentTitle = doc.title;
+
     // Extract CSS URL
     const linkElement = doc.querySelector('link[rel="stylesheet"]');
     this.cssUrl = linkElement?.getAttribute('href');
@@ -2069,6 +2244,21 @@ class SlideEditor {
 	console.log(`default transition "${t.class}"`);
 	break;
       }
+
+    // Extract hidemouse option from body
+    for (const c of doc.body.classList) {
+      const t = c.match(/^hidemouse(?:=([0-9.]+))?$/);
+      if (t) this.hidemouse = t[1] ?? 5;
+    }
+
+    // Extract the noclick option from body
+    this.noclick = doc.body.classList.contains('noclick');
+
+    // Extract the loop option from body
+    this.loop = doc.body.classList.contains('loop');
+
+    // Extract the data-timing from body
+    this.defaultTiming = doc.body.dataset.timing;
 
     // Extract slides
     this.slides = [];
