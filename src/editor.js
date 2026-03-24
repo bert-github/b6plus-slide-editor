@@ -346,43 +346,11 @@ class SlideEditor {
       this.handleArrowLeftOrRight(editor, event, range);
     });
 
-    // Ctrl+1,...Ctrl+6 make H1... H6
-    this.editor.setKeyHandler(ctrlKey + '1', editor => {
-      editor.forEachBlock(block => {
-	if (block.tagName !== 'H1') this.renameElement(block, 'h1');
-	else this.renameElement(block, 'p');
-      }, true);
-    });
-    this.editor.setKeyHandler(ctrlKey + '2', editor => {
-      editor.forEachBlock(block => {
-	if (block.tagName !== 'H2') this.renameElement(block, 'h2');
-	else this.renameElement(block, 'p');
-      }, true);
-    });
-    this.editor.setKeyHandler(ctrlKey + '3', editor => {
-      editor.forEachBlock(block => {
-	if (block.tagName !== 'H3') this.renameElement(block, 'h3');
-	else this.renameElement(block, 'p');
-      }, true);
-    });
-    this.editor.setKeyHandler(ctrlKey + '4', editor => {
-      editor.forEachBlock(block => {
-	if (block.tagName !== 'H4') this.renameElement(block, 'h4');
-	else this.renameElement(block, 'p');
-      }, true);
-    });
-    this.editor.setKeyHandler(ctrlKey + '5', editor => {
-      editor.forEachBlock(block => {
-	if (block.tagName !== 'H5') this.renameElement(block, 'h5');
-	else this.renameElement(block, 'p');
-      }, true);
-    });
-    this.editor.setKeyHandler(ctrlKey + '6', editor => {
-      editor.forEachBlock(block => {
-	if (block.tagName !== 'H6') this.renameElement(block, 'h6');
-	else this.renameElement(block, 'p');
-      }, true);
-    });
+    // PageUp and PageDown to switch to previous or next slide
+    this.editor.setKeyHandler('PageUp', (editor, event, range) =>
+      this.pageUp());
+    this.editor.setKeyHandler('PageDown', (editor, event, range) =>
+      this.pageDown());
 
     // After an Undo or Redo event, update the Edit menu
     this.editor.addEventListener('undoStateChange', event => {
@@ -406,6 +374,24 @@ class SlideEditor {
 
     // Initial path update
     this.updateElementPath();
+
+    // this.editor.focus();
+  }
+
+  // pageUp -- got to previous slide or notes
+  pageUp()
+  {
+    if (this.currentSlideIndex == 0) return; // No previous slide
+    this.highlightThumbnail(this.currentSlideIndex, --this.currentSlideIndex);
+    this.loadCurrentSlide();
+  }
+
+  // pageDown -- go to next slide or notes
+  pageDown()
+  {
+    if (this.currentSlideIndex >= this.slides.length - 1) return; // No next
+    this.highlightThumbnail(this.currentSlideIndex, ++this.currentSlideIndex);
+    this.loadCurrentSlide();
   }
 
   // handleArrowLeftOrRight -- modify the behavior of ArowLeft and ArrowRight
@@ -767,6 +753,20 @@ class SlideEditor {
     document.getElementById('html-editor').addEventListener('input',
       () => this.setEdited());
 
+    // PageUp and PageDown
+    document.addEventListener('keydown', ev => {
+      if (ev.key === 'PageDown') {
+	ev.preventDefault();
+	ev.stopPropagation();
+	this.pageDown();
+      }});
+    document.addEventListener('keydown', ev => {
+      if (ev.key === 'PageUp') {
+	ev.preventDefault();
+	ev.stopPropagation();
+	this.pageUp();
+      }});
+
     // Handle window close with unsaved changes check
     window.electronAPI.onCheckUnsavedChanges(() => {
       if (this.hasUnsavedChanges) {
@@ -844,6 +844,19 @@ class SlideEditor {
     }
   }
 
+  highlightThumbnail(oldIndex, newIndex)
+  {
+    if (oldIndex !== newIndex) {
+      // Remove active from previous item
+      const previousItem = document.getElementById(`slide-item-${oldIndex}`);
+      if (previousItem) previousItem.classList.remove('active');
+
+      // Add active to new item
+      const newItem = document.getElementById(`slide-item-${newIndex}`);
+      newItem.classList.add('active');
+    }
+  }
+
   // updateSlidesList -- renumber and regenerate thumbnails for all slides
   updateSlidesList()
   {
@@ -886,21 +899,9 @@ class SlideEditor {
       item.appendChild(label);
 
       item.addEventListener('click', () => {
-        // Update active class efficiently
-        const previousIndex = this.currentSlideIndex;
+	this.highlightThumbnail(this.currentSlideIndex, index);
         this.currentSlideIndex = index;
-
-        if (previousIndex !== index) {
-          // Remove active from previous item
-          const previousItem = document.getElementById(
-	    `slide-item-${previousIndex}`);
-          if (previousItem) previousItem.classList.remove('active');
-
-          // Add active to new item
-          item.classList.add('active');
-
-          this.loadCurrentSlide();
-        }
+        this.loadCurrentSlide();
       });
 
       list.appendChild(item);
@@ -1036,7 +1037,7 @@ class SlideEditor {
     }
 
     // Remove temporary iframe
-    document.body.removeChild(frame);
+    frame.remove();
   }
 
   // loadCurrentSlide -- start editing the current slide
@@ -1045,6 +1046,8 @@ class SlideEditor {
     if (this.slides.length === 0 || !this.slides[this.currentSlideIndex])
       return;
 
+    const wrapper = this.editorFrame?.contentDocument.getElementById(
+	'slide-wrapper');
     const slide = this.slides[this.currentSlideIndex];
 
     // Update slide info
@@ -1063,26 +1066,28 @@ class SlideEditor {
       numberSpan.textContent = `(Slide #${slideNumber})`;
     }
 
+    this.editor?.destroy();
+    this.editor = null;
+
+    // Update the wrapper class in the iframe
+    if (wrapper) {
+      const lang = slide.lang ?? this.lang;
+      if (typeof lang === 'string') wrapper.lang = lang;
+      else wrapper.removeAttribute('lang');
+      wrapper.className = this.makeClassName(slide);
+
+      // Reset CSS counter to make slide numbers display correctly
+      wrapper.style.counterReset = `slide ${slideNumber - 1}`;
+    }
+
     // Load content based on view mode
     if (this.isHtmlView)
       document.getElementById('html-editor').value = slide.content;
     else
       this.initializeSquire();
 
-    // Update the wrapper class in the iframe
-    if (this.editorFrame && this.editorFrame.contentDocument) {
-      const wrapper = this.editorFrame.contentDocument.getElementById(
-	'slide-wrapper');
-      if (wrapper) {
-	const lang = slide.lang ?? this.lang;
-	if (typeof lang === 'string') wrapper.lang = lang;
-	else wrapper.removeAttribute('lang');
-	wrapper.className = this.makeClassName(slide);
-
-        // Reset CSS counter to make slide numbers display correctly
-        wrapper.style.counterReset = `slide ${slideNumber - 1}`;
-      }
-    }
+    this.applyCssToFrame();
+    // this.editor?.focus();
 
     // Update the style selector dropdown
     const styleSelect = document.getElementById('slide-style');
@@ -1100,8 +1105,6 @@ class SlideEditor {
 
     // Update "transition" menu item
     window.electronAPI.setSlideTransition(slide.transition);
-
-    this.applyCssToFrame();
   }
 
   // updateCurrentSlideContent -- copy content from editor into slides list
@@ -1187,7 +1190,7 @@ class SlideEditor {
       this.setEdited();
       await this.updateLayoutsAndTransitions();
     }
-    document.editor?.focus();
+    this.editor?.focus();
   }
 
   // openOpenFileDialog -- show the dialog to open a file
@@ -1221,7 +1224,7 @@ class SlideEditor {
 	alert('Error opening file: ' + result.error);
       }
     }
-    document.editor?.focus();
+    this.editor?.focus();
   }
 
   // openRevertDialog -- show the dialog about reverting to the loaded file
@@ -1252,7 +1255,7 @@ class SlideEditor {
 	alert('Error opening file: ' + result.error);
       }
     }
-    document.editor?.focus();
+    this.editor?.focus();
   }
 
   // openPrintDialog -- show the dialog for printing the current slide deck
@@ -1281,7 +1284,7 @@ class SlideEditor {
     const filePath = document.getElementById('image-url').value;
     const altText = document.getElementById('alt-text').value;
     document.getElementById('image-dialog').close();
-    document.editor?.focus();
+    this.editor?.focus();
     this.setEdited();
     const relPath = this.relative(this.currentFilePath, filePath);
     this.editor.insertImage(relPath, { alt: altText });
@@ -1361,32 +1364,29 @@ class SlideEditor {
   // applyCssToFrame -- set current style URL and custom CSS in the editor frame
   applyCssToFrame()
   {
-    if (!this.editorFrame || !this.editorFrame.contentDocument) return;
+    const frameDoc = this.editorFrame?.contentDocument;
+    if (!frameDoc) return;
 
-    const frameDoc = this.editorFrame.contentDocument;
-
-    // Remove existing custom stylesheets
-    const existingLinks = frameDoc.querySelectorAll('link[data-custom-css]');
-    existingLinks.forEach(link => link.remove());
-
-    const existingStyles = frameDoc.querySelectorAll('style[data-custom-css]');
-    existingStyles.forEach(style => style.remove());
-
-    // Add external CSS
-    if (this.cssUrl) {
-      const link = frameDoc.createElement('link');
-      link.rel = 'stylesheet';
-      link.setAttribute('href', this.cssUrl);
-      link.setAttribute('data-custom-css', 'true');
-      frameDoc.head.appendChild(link);
+    let styleLink = frameDoc.head.querySelector('link.custom-css');
+    if (!styleLink) {
+      styleLink = frameDoc.createElement('link');
+      styleLink.rel = 'stylesheet';
+      styleLink.setAttribute('class', 'custom-css');
+      frameDoc.head.appendChild(styleLink);
+    }
+    if (styleLink.getAttribute('href') !== this.cssUrl) {
+      if (this.cssUrl) styleLink.setAttribute('href', this.cssUrl);
+      else styleLink.removeAttribute('href');
     }
 
-    // Add custom CSS
-    if (this.customCss) {
-      const style = frameDoc.createElement('style');
-      style.setAttribute('data-custom-css', 'true');
-      style.textContent = this.customCss;
-      frameDoc.head.appendChild(style);
+    let styleElement = frameDoc.head.querySelector('style.custom-css');
+    if (!styleElement) {
+      styleElement = frameDoc.createElement('style');
+      styleElement.setAttribute('class', 'custom-css');
+      frameDoc.head.appendChild(styleElement);
+    }
+    if (styleElement.textContent != this.customCss) {
+      styleElement.textContent = this.customCss ?? '';
     }
   }
 
@@ -1403,7 +1403,7 @@ class SlideEditor {
     this.customCss = document.getElementById('custom-css-editor').value;
     this.applyCssToFrame();
     document.getElementById('css-modal').close();
-    document.editor?.focus();
+    this.editor?.focus();
   }
 
   // setSlideStyleClass -- handle click on slide layout button or menu
@@ -1556,7 +1556,7 @@ class SlideEditor {
     const notifications = document.getElementById('notifications')
     const notificationsText = document.getElementById('notifications-text')
     document.getElementById('save-as-dialog').close();
-    document.editor?.focus();
+    this.editor?.focus();
     if (filePath) {
       notificationsText.innerText = '…';
       notifications.style.display = 'flex';
@@ -1651,7 +1651,7 @@ class SlideEditor {
     }
 
     if (isEdited) this.setEdited();
-    document.editor?.focus();
+    this.editor?.focus();
   }
 
   // getOrigin -- get the "origin" (protocol, host and port) of a path or URL
@@ -2047,7 +2047,7 @@ class SlideEditor {
     this.nextAction(username.value + ':' + password.value);
     document.getElementById('password-dialog').close();
     // this.nextAction(null);
-    document.editor?.focus();
+    this.editor?.focus();
   }
 
   // askPassword -- ask user for a username and password on behalf of the app
@@ -2459,7 +2459,7 @@ class SlideEditor {
   applyLink()
   {
     document.getElementById('link-dialog').close();
-    document.editor?.focus();
+    this.editor?.focus();
     if (!this.editor || this.isHtmlView) return;
 
     const url = document.getElementById('link-url').value.trim();
@@ -2473,7 +2473,7 @@ class SlideEditor {
   removeLink()
   {
     document.getElementById('link-dialog').close();
-    document.editor?.focus();
+    this.editor?.focus();
     if (!this.editor || this.isHtmlView) return;
 
     this.editor.removeLink();
@@ -2557,6 +2557,22 @@ class SlideEditor {
       	  this.renameElement(newElt.firstChild, 'summary');
 	return newElt;
       });
+
+    } else if (format === 'h1' || format === 'h2' || format === 'h3'
+	|| format === 'h4' || format === 'h5' || format === 'h6') {
+
+      this.editor.removeList();
+      this.editor.forEachBlock(block => {
+	if (block.tagName.toLowerCase() !== format) {
+	  if (block.parentElement?.tagName === 'DETAILS')
+	    this.renameElement(block.parentElement, 'div');
+	  this.renameElement(block, format);
+	} else {
+	  this.renameElement(block, 'p');
+	};
+	return false;
+      },
+	true);
 
     } else {
 
