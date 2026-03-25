@@ -117,7 +117,7 @@ const template = [
       { label: 'Remove Formatting',
         click: () => mainWindow.webContents.send('r-format-removeformat') },
       { type: 'separator' },
-      { label: 'Add Image...',
+      { label: 'Image...',
 	click: () => mainWindow.webContents.send('r-add-image') },
       { type: 'separator' },
       { label: 'Language...',

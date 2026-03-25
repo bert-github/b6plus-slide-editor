@@ -436,7 +436,7 @@ class SlideEditor {
     let c = '';
 
     if (doc.defaultTransition) c += doc.defaultTransition;
-    if (doc.hidemouse === '5') c += ' hidemouse';
+    if (doc.hidemouse == 5) c += ' hidemouse';
     else if ((doc.hidemouse ?? -1) >= 0) c += ` hidemouse=${doc.hidemouse}`;
     if (doc.noclick) c += ' noclick';
     if (doc.loop) c += ' loop';
@@ -2180,9 +2180,9 @@ class SlideEditor {
       const id = slide.id ? ` id="${slide.id}"` : '';
       const lang = typeof slide.lang === 'string'
 	    ? ` lang="${this.escapeHTML(slide.lang)}"` : '';
-      html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">`;
+      html += `\n<section${id}${lang} class="${this.makeClassName(slide)}">\n`;
       // html += slide.content.split('\n').map(line => '        ' + line).join('\n') + '\n';
-      html += slide.content + '</section>\n';
+      html += slide.content + '\n</section>\n';
     });
 
     html += '\n</body>\n</html>';
