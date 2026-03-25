@@ -1267,6 +1267,14 @@ class SlideEditor {
   // openImageDialog -- show the dialog to enter an image URL
   openImageDialog()
   {
+    const selected = this.selectedElement();
+
+    if (selected?.tagName === 'IMG') {
+      document.getElementById('image-url').value = selected.src;
+      document.getElementById('alt-text').value = selected.alt;
+      document.getElementById('autosize').checked =
+	selected.classList.contains('autosize');
+    }
     document.getElementById('image-dialog').showModal();
     document.getElementById('image-url').focus();
   }
@@ -1281,14 +1289,25 @@ class SlideEditor {
   // applyImage -- handle the closing of the style sheet URL dialog
   async applyImage()
   {
+    const selected = this.selectedElement();
     const filePath = document.getElementById('image-url').value;
     const altText = document.getElementById('alt-text').value;
+    const autosize = document.getElementById('autosize').checked;
     document.getElementById('image-dialog').close();
     this.editor?.focus();
     this.setEdited();
     const relPath = this.relative(this.currentFilePath, filePath);
-    this.editor.insertImage(relPath, { alt: altText });
-    this.editor.saveUndoState();
+    if (selected?.tagName === 'IMG') {
+      this.editor.saveUndoState();
+      selected.src = relPath;
+      selected.alt = altText;
+      if (autosize) selected.classList.add('autosize');
+      else selected.classList.remove('autosize');
+    } else {
+      this.editor.insertImage(relPath,
+	{ alt: altText, class: autosize ? 'autosize' : '' });
+    }
+    this.editor.focus();
   }
 
   // updateLayoutsAndTransitions - update slide layouts and transitions menus
