@@ -49,6 +49,8 @@ class SlideEditor {
     this.zoomLevel = 1.0;
     this.hasUnsavedChanges = false;
     this.defaultTransition = '';
+    this.dragSourceIndex = null;
+    this.dragTargetIndex = null;
 
     this.initializeUI();
     this.setupEventListeners();
@@ -394,6 +396,33 @@ class SlideEditor {
     this.loadCurrentSlide();
   }
 
+  // moveSlideItem -- move one list item and select the moved item
+  moveSlideItem(fromIndex, toIndex)
+  {
+    if (fromIndex < 0 || fromIndex >= this.slides.length) return false;
+    if (toIndex < 0 || toIndex >= this.slides.length) return false;
+    if (fromIndex === toIndex) return false;
+
+    this.updateCurrentSlideContent();
+    const [moved] = this.slides.splice(fromIndex, 1);
+    this.slides.splice(toIndex, 0, moved);
+    this.currentSlideIndex = toIndex;
+    this.setEdited();
+    this.updateSlidesList();
+    this.loadCurrentSlide();
+    return true;
+  }
+
+  moveCurrentItemUp()
+  {
+    this.moveSlideItem(this.currentSlideIndex, this.currentSlideIndex - 1);
+  }
+
+  moveCurrentItemDown()
+  {
+    this.moveSlideItem(this.currentSlideIndex, this.currentSlideIndex + 1);
+  }
+
   // handleArrowLeftOrRight -- modify the behavior of ArowLeft and ArrowRight
   handleArrowLeftOrRight(editor, event, range)
   {
@@ -593,6 +622,8 @@ class SlideEditor {
     window.electronAPI.onAddSlide(() => this.addSlide());
     window.electronAPI.onAddNotes(() => this.addNotes());
     window.electronAPI.onDeleteSlide(() => this.deleteSlide());
+    window.electronAPI.onMoveSlideUp(() => this.moveCurrentItemUp());
+    window.electronAPI.onMoveSlideDown(() => this.moveCurrentItemDown());
     window.electronAPI.onSetSlideLayout((event, layout) =>
       this.setSlideStyleClass(layout));
     window.electronAPI.onSetDefaultTransition((event, transition) =>
@@ -646,6 +677,10 @@ class SlideEditor {
     document.getElementById('add-slide').addEventListener('click', () => this.addSlide());
     document.getElementById('add-notes').addEventListener('click', () => this.addNotes());
     document.getElementById('delete-slide').addEventListener('click', () => this.deleteSlide());
+    document.getElementById('move-slide-up').addEventListener('click',
+      () => this.moveCurrentItemUp());
+    document.getElementById('move-slide-down').addEventListener('click',
+      () => this.moveCurrentItemDown());
     document.getElementById('toggle-view').addEventListener('click', () => this.toggleView());
     document.getElementById('change-stylesheet').addEventListener('click', () => this.openStylesheetDialog());
     document.getElementById('edit-custom-css').addEventListener('click', () => this.openCustomCssModal());
@@ -765,6 +800,16 @@ class SlideEditor {
 	ev.preventDefault();
 	ev.stopPropagation();
 	this.pageUp();
+      }});
+    document.addEventListener('keydown', ev => {
+      const moveUp = ev.key === 'ArrowUp';
+      const moveDown = ev.key === 'ArrowDown';
+      if ((moveUp || moveDown) && ev.shiftKey
+	  && (this.isMac ? ev.metaKey : ev.ctrlKey)) {
+	ev.preventDefault();
+	ev.stopPropagation();
+	if (moveUp) this.moveCurrentItemUp();
+	else this.moveCurrentItemDown();
       }});
 
     // Handle window close with unsaved changes check
@@ -897,18 +942,81 @@ class SlideEditor {
         item.classList.add('active');
 
       item.appendChild(label);
+      item.draggable = true;
+      item.dataset.slideIndex = String(index);
 
       item.addEventListener('click', () => {
 	this.highlightThumbnail(this.currentSlideIndex, index);
         this.currentSlideIndex = index;
         this.loadCurrentSlide();
       });
+      item.addEventListener('dragstart', event =>
+	this.handleSlideDragStart(event, index));
+      item.addEventListener('dragover', event =>
+	this.handleSlideDragOver(event, index));
+      item.addEventListener('drop', event =>
+	this.handleSlideDrop(event, index));
+      item.addEventListener('dragend', () => this.handleSlideDragEnd());
 
       list.appendChild(item);
     });
 
     // Generate thumbnails asynchronously
     this.generateThumbnails();
+  }
+
+  setDropTarget(index)
+  {
+    if (this.dragTargetIndex === index) return;
+    if (this.dragTargetIndex !== null) {
+      const oldTarget = document.getElementById(
+	`slide-item-${this.dragTargetIndex}`);
+      oldTarget?.classList.remove('drop-target');
+    }
+    this.dragTargetIndex = index;
+    if (index !== null) {
+      const newTarget = document.getElementById(`slide-item-${index}`);
+      newTarget?.classList.add('drop-target');
+    }
+  }
+
+  handleSlideDragStart(event, index)
+  {
+    this.dragSourceIndex = index;
+    this.setDropTarget(index);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(index));
+    const item = document.getElementById(`slide-item-${index}`);
+    item?.classList.add('dragging');
+  }
+
+  handleSlideDragOver(event, index)
+  {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    this.setDropTarget(index);
+  }
+
+  handleSlideDrop(event, index)
+  {
+    event.preventDefault();
+    const from = this.dragSourceIndex;
+    this.handleSlideDragEnd();
+    if (from === null) return;
+
+    // Drop semantics: insert before the target item.
+    const to = from < index ? index - 1 : index;
+    this.moveSlideItem(from, to);
+  }
+
+  handleSlideDragEnd()
+  {
+    if (this.dragSourceIndex !== null) {
+      const source = document.getElementById(`slide-item-${this.dragSourceIndex}`);
+      source?.classList.remove('dragging');
+    }
+    this.setDropTarget(null);
+    this.dragSourceIndex = null;
   }
 
   // generateThumbnails -- generate the thumbnails for all slides in the list
@@ -2995,7 +3103,7 @@ class SlideEditor {
       let block = null;
       while (!block && node && node !== frameDoc && node !== wrapper) {
 	const tagName = node.tagName.toLowerCase();
-	if (SlideEditor.blockElements.includes(tagName)) block = node;
+	if (SlideEditor.allBlockElements.includes(tagName)) block = node;
 	node = node.parentNode;
       }
       if (block) {

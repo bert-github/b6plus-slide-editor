@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onAddSlide: cb => ipcRenderer.on('r-add-slide', cb),
   onAddNotes: cb => ipcRenderer.on('r-add-notes', cb),
   onDeleteSlide: cb => ipcRenderer.on('r-delete-slide', cb),
+  onMoveSlideUp: cb => ipcRenderer.on('r-move-slide-up', cb),
+  onMoveSlideDown: cb => ipcRenderer.on('r-move-slide-down', cb),
   onSetSlideLayout: cb => ipcRenderer.on('r-set-slide-layout', cb),
   onSetDefaultTransition: cb => ipcRenderer.on('r-set-default-transition', cb),
   onSetSlideTransition: cb => ipcRenderer.on('r-set-slide-transition', cb),

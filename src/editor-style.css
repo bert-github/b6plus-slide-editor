@@ -163,30 +163,40 @@ body {
 
 .slides-panel-buttons {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
     padding-top: 10px;
     border-top: 2px solid #bdc3c7;
 }
 
 .slides-panel-buttons button {
-    background: #3498db;
-    color: white;
-    border: none;
-    padding: 8px 10px;
+    background: transparent;
+    color: #2c3e50;
+    border: 1px solid #bdc3c7;
+    padding: 4px;
+    min-width: 26px;
+    height: 26px;
+    line-height: 1;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 13px;
-    transition: background 0.2s;
-    white-space: nowrap;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 0;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .slides-panel-buttons button:hover {
-    background: #2980b9;
+    background: #e9ecef;
+    border-color: #95a5a6;
 }
 
 .slides-panel-buttons button:active {
-    background: #21618c;
+    background: #dfe4ea;
 }
 
 .slide-item {
@@ -250,6 +260,16 @@ body {
 
 .slide-item.notes.active {
     background: #f39c12;
+}
+
+.slide-item.dragging {
+    opacity: 0.55;
+}
+
+.slide-item.drop-target {
+    border-style: dashed;
+    border-color: #3498db;
+    background: #eaf3fb;
 }
 
 .editor-container {
@@ -519,18 +539,34 @@ body {
         border-bottom-color: #333;
     }
 
-    .toolbar button, .slides-panel-buttons button {
+    .toolbar button {
         background: #0d7377;
         color: #e0e0e0;
     }
 
-    .toolbar button:hover, .slides-panel-buttons button:hover {
+    .toolbar button:hover {
         background: #14b8a6;
 	color: black;
     }
 
     .toolbar button:active {
         background: #0e9f9f;
+    }
+
+    .slides-panel-buttons button {
+        background: transparent;
+        color: #e0e0e0;
+        border-color: #555;
+    }
+
+    .slides-panel-buttons button:hover {
+        background: #3a3a3a;
+        color: #fff;
+        border-color: #666;
+    }
+
+    .slides-panel-buttons button:active {
+        background: #4a4a4a;
     }
 
     .toolbar input[type="text"],
