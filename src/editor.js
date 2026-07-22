@@ -14,11 +14,11 @@ class SlideEditor {
   // file, assume it provides these layouts and slide transitions:
   static defaultLayouts = [
     { "name": "Normal slide",
-      "class": "" },
+      "class": [] },
     { "name": "Cover slide",
-      "class": "cover" },
+      "class": ["cover"] },
     { "name": "Final slide",
-      "class": "final" }
+      "class": ["final"] }
   ];
   static defaultTransitions = [
     { "name": "Default",
@@ -531,7 +531,7 @@ class SlideEditor {
 
 	  let label = element.nodeName.toLowerCase();
 	  if (element.className)
-	    label += '.' + element.className.split(' ').join('.');
+	    label += '.' + element.className.split(/\s+/).join('.');
 	  if (element.id)
             label += '#' + element.id;
 
@@ -1458,7 +1458,7 @@ class SlideEditor {
     // Make sure all the class fields contain arrays, not single strings.
     for (const layout of this.cssUrlInfo.layouts)
       if (!layout.class) layout.class = [];
-    else if (!Array.isArray(layout.class)) layout.class = [layout.class];
+      else if (!Array.isArray(layout.class)) layout.class = [layout.class];
 
     // Update the menus
     await window.electronAPI.updateLayoutAndTransitionsMenus(this.cssUrlInfo);
@@ -2366,7 +2366,7 @@ class SlideEditor {
     this.defaultTransition = null;
     for (const t of this.cssUrlInfo.transitions)
       if (t.class
-	  && t.class.split(' ').every(c => doc.body.classList.contains(c))) {
+	  && t.class.split(/\s+/).every(c => doc.body.classList.contains(c))) {
 	this.defaultTransition = t.class;
 	console.log(`default transition "${t.class}"`);
 	break;
@@ -2411,21 +2411,40 @@ class SlideEditor {
       let transition = null;
       for (const t of this.cssUrlInfo.transitions)
 	if (t.class
-	    && t.class.split(' ').every(c => section.classList.contains(c)))
+	    && t.class.split(/\s+/).every(c => section.classList.contains(c)))
 	  transition = t.class;
       if (transition)
-	for (const c of transition.split(' ')) section.classList.remove(c);
+	for (const c of transition.split(/\s+/)) section.classList.remove(c);
 
-      // Find the slide's layout class, if any, and remove it from the classes.
-      let layout = '', classes;
-      for (const h of this.cssUrlInfo.layouts)
-	for (const x of h.class)
-	  if (x && x.split(' ').every(c => section.classList.contains(c))) {
-	    classes = x;
-	    layout = h.class[0]; // The zeroth entry is the canonical one
+      // Find the slide's layout, if any, and remove it's class names
+      // from the slide's classList. If multiple layouts match the
+      // slide's classList, we take the layout with the longest list
+      // of classes. If several have the same length, take the first.
+      let layout = '', classesToRemove = [], nrClassNames = -1;
+      for (const h of this.cssUrlInfo.layouts) {
+	console.assert(Array.isArray(h.class));
+	if (nrClassNames < 0 && h.class.length == 0) {
+	  // We didn't find a matching layout yet and this layout has
+	  // no class names, so it matches.
+	  classesToRemove = [];
+	  nrClassNames = 0;
+	  layout = '';
+	} else if (h.class.length != 0) {
+	  // This layout requires one or more class names. Loop over
+	  // the alternative spellings.
+	  for (const x of h.class) {
+	    const classnames = x.split(/\s+/).filter(s => s != '');
+	    if (classnames.length > nrClassNames &&
+		classnames.every(c => section.classList.contains(c))) {
+	      classesToRemove = classnames;
+	      nrClassNames = classnames.length;
+	      // The zeroth entry is the canonical one:
+	      layout = h.class[0];
+	    }
 	  }
-      if (layout)
-	for (const c of classes.split(' ')) section.classList.remove(c);
+	}
+      }
+      for (const c of classesToRemove) section.classList.remove(c);
 
       this.slides.push({
         type: type,
