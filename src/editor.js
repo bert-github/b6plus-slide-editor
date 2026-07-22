@@ -1460,11 +1460,8 @@ class SlideEditor {
       if (!layout.class) layout.class = [];
       else if (!Array.isArray(layout.class)) layout.class = [layout.class];
 
-    // Update the menus
+    // Update the menu
     await window.electronAPI.updateLayoutAndTransitionsMenus(this.cssUrlInfo);
-    window.electronAPI.setDefaultTransition(this.defaultTransition);
-    const currentSlide = this.slides[this.currentSlideIndex];
-    window.electronAPI.setSlideTransition(currentSlide.transition);
 
     // Update the dropdown menu of slide layouts
     const styleSelect = document.getElementById('slide-style');
@@ -1635,16 +1632,15 @@ class SlideEditor {
   }
 
   // newFile -- handle click on "new file" menu item (or equivalent keypress)
-  newFile()
+  async newFile()
   {
     if (this.hasUnsavedChanges && !confirm('Create a new file? Unsaved changes will be lost.')) {
       return;
     }
 
-    this.slides = [];
-    this.currentSlideIndex = 0;
     this.currentFilePath = null;
-    this.addInitialSlide();
+    this.currentSlideIndex = 0;
+    await this.parseHtml('');
   }
 
   // saveFile -- handle click on "save file" menu item
@@ -2317,6 +2313,7 @@ class SlideEditor {
     }
 
     this.currentFilePath = realfile;
+    this.currentSlideIndex = 0;
     const decoder = new TextDecoder();
     const html = decoder.decode(body);
     await this.parseHtml(html);
@@ -2351,7 +2348,7 @@ class SlideEditor {
     this.cssUrl = linkElement?.getAttribute('href');
 
     // Update the menu of layouts defined by the style sheet.
-    this.updateLayoutsAndTransitions();
+    await this.updateLayoutsAndTransitions();
 
     // Extract custom CSS
     const styleElement = doc.querySelector('style');
@@ -2371,6 +2368,7 @@ class SlideEditor {
 	console.log(`default transition "${t.class}"`);
 	break;
       }
+    window.electronAPI.setDefaultTransition(this.defaultTransition);
 
     // Extract hidemouse option from body
     for (const c of doc.body.classList) {
@@ -2461,6 +2459,10 @@ class SlideEditor {
 
     if (this.slides.length === 0) this.addInitialSlide();
     else this.currentSlideIndex = 0;
+
+    // Update the menu
+    const currentSlide = this.slides[this.currentSlideIndex];
+    window.electronAPI.setSlideTransition(currentSlide?.transition);
   }
 
   zoomIn()
